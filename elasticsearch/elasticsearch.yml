@@ -1,0 +1,7 @@
+---
+  cluster.name: "AI-Hunter-Docker-Single-Node"
+  network.host: 0.0.0.0
+
+  discovery.type: single-node
+
+  xpack.security.enabled: true
