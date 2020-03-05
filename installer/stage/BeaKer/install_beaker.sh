@@ -122,7 +122,7 @@ install_elk () {
     gzip -d -c images-latest.tar.gz | $docker_sudo docker load >&2
 
     # Start Elasticsearch and Kibana with the new images
-    $docker_sudo docker-compose -f docker-compose.yml up -d --force-recreate >&2
+    ./beaker up -d --force-recreate >&2
 
     status "Waiting for initialization"
     sleep 15
