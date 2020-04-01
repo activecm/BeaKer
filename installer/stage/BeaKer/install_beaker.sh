@@ -86,6 +86,7 @@ ensure_env_file_exists () {
 # Elastic Search Settings
 #
 ELASTIC_PASSWORD=${elastic_password}
+BEAKER_CONFIG_DIR=${BEAKER_CONFIG_DIR}
 ###############################################################################
 EOF
     fi
@@ -108,6 +109,44 @@ require_aih_web_server_listening () {
 	fi
 }
 
+ensure_certificates_exist () {
+
+    local cert_files=(
+        ca/ca.crt ca/ca.key
+        Elasticsearch/Elasticsearch.crt Elasticsearc/Elasticsearch.key
+        Kibana/Kibana.crt Kibana/Kibana.key
+    )
+
+    local certs_exist=true
+
+    for cert_file in ${cert_files[@]}; do
+        if [ ! -f "$BEAKER_CONFIG_DIR/certificates/$cert_file" ]; then
+            certs_exist=false
+            break
+        fi
+    done
+
+    if [ "$certs_exist" != "true" ]; then
+        $SUDO rm -rf "$BEAKER_CONFIG_DIR/certificates"
+        $SUDO mkdir "$BEAKER_CONFIG_DIR/certificates"
+
+        # Create Elasticsearch certificate and CA
+        ./beaker run --rm elasticsearch /usr/share/elasticsearch/bin/elasticsearch-certutil cert ca --keep-ca-key \
+            --name Elasticsearch --pem --days 10950 --out /usr/share/elasticsearch/config/certificates/certs.zip > /dev/null
+        (cd /etc/BeaKer/certificates && $SUDO unzip certs.zip > /dev/null)
+        $SUDO rm "$BEAKER_CONFIG_DIR/certificates/certs.zip"
+
+        # Create Kibana certicate, reusing the CA
+        ./beaker run --rm elasticsearch /usr/share/elasticsearch/bin/elasticsearch-certutil cert \
+            --ca-cert /usr/share/elasticsearch/config/certificates/ca/ca.crt \
+            --ca-key /usr/share/elasticsearch/config/certificates/ca/ca.key \
+            --name Kibana --pem --days 10950 --out /usr/share/elasticsearch/config/certificates/certs.zip > /dev/null
+        (cd "$BEAKER_CONFIG_DIR/certificates" && $SUDO unzip certs.zip > /dev/null)
+        $SUDO rm "$BEAKER_CONFIG_DIR/certificates/certs.zip"
+    fi
+
+}
+
 
 install_elk () {
     status "Installing Elasticsearch and Kibana"
@@ -120,6 +159,8 @@ install_elk () {
 
     # Load the docker images
     gzip -d -c images-latest.tar.gz | $docker_sudo docker load >&2
+
+    ensure_certificates_exist
 
     # Start Elasticsearch and Kibana with the new images
     ./beaker up -d --force-recreate >&2

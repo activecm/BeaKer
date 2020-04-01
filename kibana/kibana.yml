@@ -1,8 +1,12 @@
 ---
 server.name: "AI-Hunter: Kibana"
 server.host: "0"
-elasticsearch.hosts: [ "http://elasticsearch:9200" ]
-
+server.ssl.enabled: true
+server.ssl.certificate: /usr/share/kibana/config/certificates/Kibana/Kibana.crt
+server.ssl.key: /usr/share/kibana/config/certificates/Kibana/Kibana.key
 
 elasticsearch.username: elastic
 elasticsearch.password: "${ELASTIC_PASSWORD}"
+elasticsearch.hosts: [ "https://elasticsearch:9200" ]
+elasticsearch.ssl.verificationMode: certificate
+elasticsearch.ssl.certificateAuthorities: [ "/usr/share/kibana/config/certificates/ca/ca.crt" ]

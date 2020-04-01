@@ -101,6 +101,9 @@ output.elasticsearch:
   index: `"sysmon-%{+YYYY.MM.dd}`"
   username: `"`${ES_USERNAME}`"
   password: `"`${ES_PASSWORD}`"
+  ssl:
+    enabled: true
+    verification_mode: none
 "@ > winlogbeat.yml
 PowerShell.exe -ExecutionPolicy UnRestricted -File .\install-service-winlogbeat.ps1
 Start-Service winlogbeat
