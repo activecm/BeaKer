@@ -50,7 +50,7 @@ param (
     [string]$ESPassword=""
 )
 
-if (-not (Test-Path C:\Windows -PathType Container)) {
+if (-not (Test-Path "$Env:programfiles\Sysmon" -PathType Container)) {
   Invoke-WebRequest -OutFile Sysmon.zip https://download.sysinternals.com/files/Sysmon.zip
   Expand-Archive .\Sysmon.zip
   rm .\Sysmon.zip
@@ -59,7 +59,7 @@ if (-not (Test-Path C:\Windows -PathType Container)) {
 
 & "$Env:programfiles\Sysmon\Sysmon64.exe" -accepteula -i -n
 
-if (-not (Test-Path C:\Windows -PathType Container)) {
+if (-not (Test-Path "$Env:programfiles\winlogbeat*" -PathType Container)) {
   Invoke-WebRequest -OutFile WinLogBeat.zip https://artifacts.elastic.co/downloads/beats/winlogbeat/winlogbeat-7.5.2-windows-x86_64.zip
   Expand-Archive .\WinLogBeat.zip
   rm .\WinLogBeat.zip
