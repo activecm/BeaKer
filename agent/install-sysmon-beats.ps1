@@ -10,7 +10,7 @@ Sysmon is then configured to report network connections and Winlogbeat is config
 the desired Elasticsearch server.
 
 .PARAMETER ESHost
-The IP address or hostname of the Elasticsearch server to send connection logs.
+The IP address or hostname of the Elasticsearch server to send connection logs. This should not contain a protocol descriptor such as "https://".
 
 .PARAMETER ESPort
 The port on which the Elasticsearch server is listening. Defaults to TCP 9200.
@@ -97,7 +97,7 @@ setup.template.pattern: `"sysmon-*`"
 
 output.elasticsearch:
   hosts:
-    - ${ESHost}:${ESPort}
+    - https://${ESHost}:${ESPort}
   index: `"sysmon-%{+YYYY.MM.dd}`"
   username: `"`${ES_USERNAME}`"
   password: `"`${ES_PASSWORD}`"
