@@ -58,8 +58,8 @@ ensure_env_file_exists () {
 
     if [ ! -f "$BEAKER_CONFIG_DIR/env" ]; then
         status "Generating BeaKer configuration"
-        echo2 "Please enter a password for the default Elasticsearch user account."
-        echo2 "Username: elastic"
+        echo "Please enter a password for the admin Elasticsearch user account."
+        echo "Username: elastic"
         local elastic_password=""
         local pw_confirmation="foobar"
         while [ "$elastic_password" != "$pw_confirmation" ]; do
@@ -147,8 +147,7 @@ ensure_certificates_exist () {
 
 }
 
-
-install_elk () {
+install_beaker () {
     status "Installing Elasticsearch and Kibana"
 
     # Determine if the current user has permission to run docker
@@ -187,8 +186,59 @@ install_elk () {
     if [ "$data_uploaded" != "true" ]; then
         fail "The installer failed to load the Kibana dashboards"
     fi
+}
 
-    status "Congratulations, BeaKer is installed"
+
+configure_ingest_account () {
+    # Determine if the current user has permission to run docker/ read the env file
+    local docker_sudo=""
+    if [ ! -w "/var/run/docker.sock" ]; then
+        docker_sudo="sudo"
+    fi
+    local es_pass=`$docker_sudo grep ELASTIC_PASSWORD "$BEAKER_CONFIG_DIR/env" | cut -d= -f2`
+
+    # Don't configure the ingest account if it already exists
+    if curl -s -u "elastic:$es_pass" -X GET -k "https://localhost:9200/_security/user/sysmon-ingest" | grep -q "\"username\":\"sysmon-ingest\""; then
+        return
+    fi
+
+    status "Configuring Elasticsearch ingest account"
+
+    echo "Please enter a password for the Elasticsearch Sysmon-ingest user account."
+    echo "Use this account when connecting the BeaKer agent."
+    echo "Username: sysmon-ingest"
+    local ingest_password=""
+    local pw_confirmation="foobar"
+    while [ "$ingest_password" != "$pw_confirmation" ]; do
+        read -es -p "Password: " ingest_password
+        echo ""
+        read -es -p "Password (Confirmation): " pw_confirmation
+        echo ""
+    done
+
+    if ! curl -s -u "elastic:$es_pass" -X POST -k "https://localhost:9200/_security/role/sysmon-ingest" -H 'Content-Type: application/json' -d'
+    {
+        "run_as": [],
+        "cluster": [ "monitor", "manage_index_templates" ],
+        "indices": [
+            {
+                "names": [ "sysmon-*" ],
+                "privileges": [ "create_doc", "create_index" ]
+            }
+        ]
+    }
+    ' > /dev/null ; then
+        fail "Unable to create Elasticsearch ingest role."
+    fi
+
+    if ! curl -s -u "elastic:$es_pass" -X POST -k "https://localhost:9200/_security/user/sysmon-ingest" -H 'Content-Type: application/json' -d"
+    {
+        \"password\" : \"$ingest_password\",
+        \"roles\" : [ \"sysmon-ingest\" ]
+    }
+    " > /dev/null ; then
+        fail "Unable to create Elasticsearch ingest user."
+    fi
 }
 
 main () {
@@ -203,7 +253,10 @@ main () {
     install_docker
 
     ensure_env_file_exists
-    install_elk
+    install_beaker
+    configure_ingest_account
+
+    status "Congratulations, BeaKer is installed"
 }
 
 main "$@"
