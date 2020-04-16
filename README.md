@@ -41,6 +41,12 @@ Download the latest release tar file, extract it, and run `./install_beaker.sh` 
   - Set the Elasticsearch superuser password for the `elastic` account
   - Set the `sysmon-ingest` user password for connecting WinLogBeats
 
+The `./beaker` script inside of the release tar file is a wrapper around `docker-compose` and can be used to manage BeaKer.
+ - To stop BeaKer, run `./beaker down`
+ - To start Beaker, run `./beaker up`
+ - To view the logs of the Elasticsearch container, run `./beaker logs -f beaker_elasticsearch_1`
+ - To view the logs of the Kibana container, run `./beaker logs -f beaker_kibana_1`
+
 After running `./install_beaker.sh` you should be able to access Kibana at `localhost:5601`. Note that Kibana is exposed on every network interface available on the Docker host.
 
 Use the `elastic` account to perform your initial login to Kibana. Additional user accounts can be created using the Kibana interface. The `sysmon-ingest` user account is not allowed to access Kibana.
