@@ -58,7 +58,7 @@ The easiest way to begin sending data to the server is to use the automated BeaK
 ### Automated Install: BeaKer Agent
 The PowerShell script `./agent/install-sysmon-beats.ps1` will install Sysmon and WinLogBeats, and configure WinLogBeats to begin sending data to the BeaKer server.
 
-To install the agent, run the script as `./install-sysmon-beats.ps1 ip.or.hostname.of.beaker.server`.
+To install the agent, run the script as `.\install-sysmon-beats.ps1 ip.or.hostname.of.beaker.server 9200`.
 
 The script will then:
 - Ask for the credentials of the Elasticsearch user to connect with

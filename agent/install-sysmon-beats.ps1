@@ -20,7 +20,7 @@ Warning: Insecure!
 The username used to authenticate to the Elasticsearch server. If ESUsername is not specified,
 the script will ask for the username at runtime. In order to avoid recording the Elasticsearch
 username, consider editing this file. Change the line `[string]$ESUsername="",` to
-`[string]$ESUsername="YOUR_ELASTIC_PASSWORD_HERE",.
+`[string]$ESUsername="YOUR_ELASTIC_USERNAME_HERE",.
 
 .PARAMETER ESPassword
 Warning: Insecure!
@@ -31,10 +31,10 @@ password, consider editing this file. Change the line `[string]$ESPassword="",` 
 
 .EXAMPLE
 # Asks for Elasticsearch authentication details at runtime
-./install-sysmon-beats.ps1 my-es-host.com 9200
+.\install-sysmon-beats.ps1 my-es-host.com 9200
 
 # Reads Elasticsearch authentication details from the command line aguments
-./install-sysmon-beats.ps1 my-es-host.com 9200 elastic elastic_password
+.\install-sysmon-beats.ps1 my-es-host.com 9200 elastic elastic_password
 
 .NOTES
 The Elasticsearch credentials are stored locally using Elastic Winlogbeat's secure
