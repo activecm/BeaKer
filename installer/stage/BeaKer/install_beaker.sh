@@ -113,7 +113,7 @@ ensure_certificates_exist () {
 
     local cert_files=(
         ca/ca.crt ca/ca.key
-        Elasticsearch/Elasticsearch.crt Elasticsearc/Elasticsearch.key
+        Elasticsearch/Elasticsearch.crt Elasticsearch/Elasticsearch.key
         Kibana/Kibana.crt Kibana/Kibana.key
     )
 
