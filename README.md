@@ -99,3 +99,7 @@ The script will then:
 ## Developer Information
 
 To generate a new release tarball, run `./installer/generate_installer.sh`.
+
+## License
+
+GNU GPL V3 © Active Countermeasures ™
