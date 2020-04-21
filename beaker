@@ -13,7 +13,7 @@ fi
 
 # Check for pre-requisites
 shell-lib/docker/check_docker.sh || echo "You do not have a supported version of Docker installed."
-shell-lib/docker/check_docker.sh || echo "You do not have a supported version of Docker-Compose installed."
+shell-lib/docker/check_docker-compose.sh || echo "You do not have a supported version of Docker-Compose installed."
 
 $SUDO docker-compose -f "docker-compose.yml" "$@"
 
