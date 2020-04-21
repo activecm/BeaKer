@@ -34,7 +34,10 @@ After Sysmon starts sending data to ElasticSearch, Kibana will be ready to go. F
 
 ### Automated Install: BeaKer Server
 
-Download the latest release tar file, extract it, and run `./install_beaker.sh` on the Linux machine that will aggregate your Sysmon data and host Kibana. The automated installer will:
+Download the latest release tar file, extract it, and inside the `BeaKer` directory,
+run `./install_beaker.sh` on the Linux machine that will aggregate your Sysmon data and host Kibana.
+
+The automated installer will:
   - Install Docker and Docker-Compose
   - Create a configuration directory in `/etc/BeaKer`
   - Install Elasticsearch, Kibana, and load the dashboards
@@ -92,3 +95,7 @@ The script will then:
   - Domain
   - Name
 - Timestamp
+
+## Developer Information
+
+To generate a new release tarball, run `./installer/generate_installer.sh`.
