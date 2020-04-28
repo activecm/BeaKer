@@ -15,7 +15,10 @@ fi
 shell-lib/docker/check_docker.sh || echo "You do not have a supported version of Docker installed."
 shell-lib/docker/check_docker-compose.sh || echo "You do not have a supported version of Docker-Compose installed."
 
-$SUDO docker-compose -f "docker-compose.yml" "$@"
+# TMPDIR is erased even if -E is passed to sudo. https://serverfault.com/questions/478741/sudo-does-not-preserve-tmpdir
+# Need to explicitly pass tmpdir in if it exists. Expands to nothing if TMPDIR doesn't exist.
+
+$SUDO env "${TMPDIR:+TMPDIR=$TMPDIR}" docker-compose -f "docker-compose.yml" "$@"
 
 # Store the exit code from docker-compose to use later
 result=$?
