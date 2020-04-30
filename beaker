@@ -17,9 +17,8 @@ shell-lib/docker/check_docker-compose.sh || echo "You do not have a supported ve
 
 # TMPDIR is erased even if -E is passed to sudo. https://serverfault.com/questions/478741/sudo-does-not-preserve-tmpdir
 # Need to explicitly pass tmpdir in if it exists. Expands to nothing if TMPDIR doesn't exist.
-TMP_DIR=${TMPDIR:+TMPDIR=$TMPDIR}
-if [ -z "$TMP_DIR" ]; then
-	$SUDO env "$TMP_DIR" docker-compose -f "docker-compose.yml" "$@"
+if [ -n "$TMPDIR" ]; then
+	$SUDO env "TMPDIR=$TMPDIR" docker-compose -f "docker-compose.yml" "$@"
 else
 	$SUDO docker-compose -f "docker-compose.yml" "$@"
 fi
