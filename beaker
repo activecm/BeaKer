@@ -16,7 +16,7 @@ shell-lib/docker/check_docker.sh || echo "You do not have a supported version of
 shell-lib/docker/check_docker-compose.sh || echo "You do not have a supported version of Docker-Compose installed."
 
 # TMPDIR is erased even if -E is passed to sudo. https://serverfault.com/questions/478741/sudo-does-not-preserve-tmpdir
-# Need to explicitly pass tmpdir in if it exists. Expands to nothing if TMPDIR doesn't exist.
+# Need to explicitly pass tmpdir in if it exists.
 if [ -n "$TMPDIR" ]; then
 	$SUDO env "TMPDIR=$TMPDIR" docker-compose -f "docker-compose.yml" "$@"
 else
