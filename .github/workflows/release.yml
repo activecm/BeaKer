@@ -1,4 +1,4 @@
-name: Generate and upload a release tarball
+name: Generate and upload a release assets
 
 on:
   release:
@@ -26,3 +26,13 @@ jobs:
           # (e.g. editing a release w/o deleting the existing asset)
           asset_name: BeaKer.tar
           asset_content_type: application/x-tar
+      - uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: agent/install-sysmon-beats.ps1
+          # Note: This will fail if the asset already exists 
+          # (e.g. editing a release w/o deleting the existing asset)
+          asset_name: install-sysmon-beats.ps1
+          asset_content_type: text/plain
