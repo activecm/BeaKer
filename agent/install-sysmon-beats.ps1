@@ -57,7 +57,81 @@ if (-not (Test-Path "$Env:programfiles\Sysmon" -PathType Container)) {
   mv .\Sysmon\ "$Env:programfiles"
 }
 
-& "$Env:programfiles\Sysmon\Sysmon64.exe" -accepteula -i -n
+echo @"
+<Sysmon schemaversion="4.22">
+    <HashAlgorithms>md5,sha256,IMPHASH</HashAlgorithms>
+    <EventFiltering>
+        <ProcessCreate onmatch="include">
+            <!--SYSMON EVENT ID 1 : PROCESS CREATION [ProcessCreate]-->
+        </ProcessCreate>
+
+        <FileCreateTime onmatch="include">
+            <!--SYSMON EVENT ID 2 : FILE CREATION TIME RETROACTIVELY CHANGED IN THE FILESYSTEM [FileCreateTime]-->
+        </FileCreateTime>
+
+        <NetworkConnect onmatch="exclude">
+            <!--SYSMON EVENT ID 3 : NETWORK CONNECTION INITIATED [NetworkConnect]-->
+        </NetworkConnect>
+
+        <!--SYSMON EVENT ID 4 : RESERVED FOR SYSMON SERVICE STATUS MESSAGES-->
+
+        <ProcessTerminate onmatch="include">
+            <!--SYSMON EVENT ID 5 : PROCESS ENDED [ProcessTerminate]-->
+        </ProcessTerminate>
+
+        <DriverLoad onmatch="include">
+            <!--SYSMON EVENT ID 6 : DRIVER LOADED INTO KERNEL [DriverLoad]-->
+        </DriverLoad>
+
+        <ImageLoad onmatch="include">
+            <!--SYSMON EVENT ID 7 : DLL (IMAGE) LOADED BY PROCESS [ImageLoad]-->
+        </ImageLoad>
+
+        <CreateRemoteThread onmatch="include">
+            <!--SYSMON EVENT ID 8 : REMOTE THREAD CREATED [CreateRemoteThread]-->
+        </CreateRemoteThread>
+
+        <RawAccessRead onmatch="include">
+            <!--SYSMON EVENT ID 9 : RAW DISK ACCESS [RawAccessRead]-->
+        </RawAccessRead>
+
+        <ProcessAccess onmatch="include">
+            <!--SYSMON EVENT ID 10 : INTER-PROCESS ACCESS [ProcessAccess]-->
+        </ProcessAccess>
+
+        <FileCreate onmatch="include">
+            <!--SYSMON EVENT ID 11 : FILE CREATED [FileCreate]-->
+        </FileCreate>
+
+        <RegistryEvent onmatch="include">
+            <!--SYSMON EVENT ID 12 & 13 & 14 : REGISTRY MODIFICATION [RegistryEvent]-->
+        </RegistryEvent>
+
+        <FileCreateStreamHash onmatch="include">
+            <!--SYSMON EVENT ID 15 : ALTERNATE DATA STREAM CREATED [FileCreateStreamHash]-->
+        </FileCreateStreamHash>
+
+        <!--SYSMON EVENT ID 16 : SYSMON CONFIGURATION CHANGE-->
+
+        <PipeEvent onmatch="include">
+            <!--SYSMON EVENT ID 17 & 18 : PIPE CREATED / PIPE CONNECTED [PipeEvent]-->
+        </PipeEvent>
+
+        <WmiEvent onmatch="include">
+            <!--SYSMON EVENT ID 19 & 20 & 21 : WMI EVENT MONITORING [WmiEvent]-->
+        </WmiEvent>
+
+        <DnsQuery onmatch="include">
+            <!--SYSMON EVENT ID 19 & 20 & 21 : WMI EVENT MONITORING [WmiEvent]-->
+        </DnsQuery>
+
+        <!--SYSMON EVENT ID 255 : ERROR-->
+    </EventFiltering>
+</Sysmon>
+"@ > "$Env:programfiles\Sysmon\sysmon-net-only.xml"
+
+
+& "$Env:programfiles\Sysmon\Sysmon64.exe" -accepteula -i "$Env:programfiles\Sysmon\sysmon-net-only.xml"
 
 if (-not (Test-Path "$Env:programfiles\winlogbeat*" -PathType Container)) {
   Invoke-WebRequest -OutFile WinLogBeat.zip https://artifacts.elastic.co/downloads/beats/winlogbeat/winlogbeat-7.5.2-windows-x86_64.zip
