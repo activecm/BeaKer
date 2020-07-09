@@ -39,7 +39,7 @@ BEAKER_CONFIG_DIR="${BEAKER_CONFIG_DIR:-/etc/BeaKer/}"
 test_system () {
     status "Checking minimum requirements"
     require_supported_os
-    require_free_space "$HOME" "/var/lib" "/etc" "/usr" 5120
+    require_free_space_MB "$HOME" "/var/lib" "/etc" "/usr" 5120
 }
 
 install_docker () {
