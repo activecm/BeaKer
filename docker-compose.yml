@@ -26,3 +26,12 @@ services:
       - ${BEAKER_CONFIG_DIR:-/etc/BeaKer/}certificates:/usr/share/kibana/config/certificates
     depends_on:
       - elasticsearch
+
+  es-dump:
+    image: taskrabbit/elasticsearch-dump:v6.28.0
+    restart: "no"
+    environment:
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
+    depends_on:
+      - elasticsearch
+    entrypoint: ["/bin/true"]
