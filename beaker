@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Change dir to script dir
-pushd "$(dirname "${BASH_SOURCE[0]}")" > /dev/null
+pushd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" > /dev/null
 
 
 # If the current user doesn't have docker permissions or
