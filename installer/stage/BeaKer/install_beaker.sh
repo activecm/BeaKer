@@ -39,7 +39,7 @@ BEAKER_CONFIG_DIR="${BEAKER_CONFIG_DIR:-/etc/BeaKer/}"
 test_system () {
     status "Checking minimum requirements"
     require_supported_os
-    require_free_space "$HOME" "/var/lib" "/etc" "/usr" 5120
+    require_free_space_MB "$HOME" "/var/lib" "/etc" "/usr" 5120
 }
 
 install_docker () {
@@ -238,11 +238,38 @@ configure_ingest_account () {
     fi
 }
 
+move_files () {
+    local installation_dir="/opt/$(basename "$(pwd)")"
+    if [[ `pwd` -ef "$installation_dir" ]]; then
+        return 0
+    fi
+
+    status "Moving files to $installation_dir"
+    $SUDO rm -rf "$installation_dir"
+    move_working_directory `dirname "$installation_dir"`
+}
+
+link_executables () {
+    local executables=(
+        "./beaker"
+    )
+
+    for executable in "${executables[@]}"; do
+        local executable_name=`basename "$executable"`
+        local link_name="/usr/local/bin/$executable_name"
+        $SUDO rm -f "$link_name"
+        $SUDO ln -sf `realpath "$executable"` "$link_name"
+    done
+}
+
 main () {
     status "Checking for administrator priviledges"
     require_sudo
 
     test_system
+
+    move_files
+    link_executables
 
     status "Installing supporting software"
     ensure_common_tools_installed
@@ -257,6 +284,8 @@ main () {
 }
 
 main "$@"
+
 #### Clean Up
 # Change back to the initial working directory
-popd > /dev/null
+# If the script was launched from the script directory, popd will fail since it moved
+popd &> /dev/null || true

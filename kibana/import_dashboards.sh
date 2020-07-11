@@ -20,7 +20,8 @@ read_password() {
 
 main () {
     local es_pass="$(read_password)"
-    local resp=`curl -u "elastic:$es_pass" -X POST -k "https://localhost:5601/api/saved_objects/_import?overwrite=true" -H "kbn-xsrf: true" -F file=@$DASHBOARD_FILE`
+    local resp # local resp has to be separate from the next line to generate a valid $? for the curl command
+    resp=`curl --fail -u "elastic:$es_pass" -X POST -k "https://localhost:5601/api/saved_objects/_import?overwrite=true" -H "kbn-xsrf: true" -F file=@$DASHBOARD_FILE`
     if [ $? -ne 0 -o "$resp" == "Kibana server is not ready yet" ]; then
         exit 2
     fi
