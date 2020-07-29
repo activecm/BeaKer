@@ -5,11 +5,12 @@ set -e
 # These services are always built unless --no-build is passed in
 DOCKER_BUILD_SERVICES="elasticsearch kibana"
 # These services are always pulled unless --no-pull is passsed in
-# DOCKER_PULL_SERVICES=""
+DOCKER_PULL_SERVICES="es-dump"
 # These images are exported in the deployment after running pulls/builds
 DOCKER_EXPORT_IMAGES=$(cat <<'HEREDOC'
     activecm-beaker/elasticsearch:latest
     activecm-beaker/kibana:latest
+    taskrabbit/elasticsearch-dump:v6.28.0
 HEREDOC
 )
 
@@ -91,7 +92,7 @@ if [ ! "$NO_BUILD" ]; then
   else
     # Ensure we have the latest images
     echo "The latest images will be pulled from DockerHub for this build."
-    # $SUDO docker-compose pull $DOCKER_PULL_SERVICES
+    $SUDO docker-compose pull $DOCKER_PULL_SERVICES
     $SUDO docker-compose build --pull $NO_CACHE $DOCKER_BUILD_SERVICES
   fi
 fi
