@@ -168,7 +168,7 @@ install_beaker () {
 
     # Load password for kibana_import.sh.
     # Use docker_sudo since the env file ownership is root:docker.
-    local es_pass=`$docker_sudo grep ELASTIC_PASSWORD "$BEAKER_CONFIG_DIR/env" | cut -d= -f2`
+    local es_pass=`$docker_sudo grep '^ELASTIC_PASSWORD' "$BEAKER_CONFIG_DIR/env" | sed -e 's/^[^=][^=]*=//'`
 
     local connection_attempts=0
     local data_uploaded="false"
