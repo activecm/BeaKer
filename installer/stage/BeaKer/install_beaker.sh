@@ -174,9 +174,12 @@ install_beaker () {
     local data_uploaded="false"
     while [ $connection_attempts -lt 8 -a "$data_uploaded" != "true" ]; do
         if echo "$es_pass" | kibana/import_dashboards.sh "kibana/kibana_dashboards.ndjson" >&2 ; then
+            echo2 "The installer successfully uploaded dashboards to Kibana."
             data_uploaded="true"
             break
         fi
+        echo2 "The installer encountered an error while uploading dashboards to Kibana."
+        echo2 "Retrying..."
         sleep 15
         connection_attempts=$((connection_attempts + 1))
     done
