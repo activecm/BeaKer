@@ -168,15 +168,18 @@ install_beaker () {
 
     # Load password for kibana_import.sh.
     # Use docker_sudo since the env file ownership is root:docker.
-    local es_pass=`$docker_sudo grep ELASTIC_PASSWORD "$BEAKER_CONFIG_DIR/env" | cut -d= -f2`
+    local es_pass=`$docker_sudo grep '^ELASTIC_PASSWORD' "$BEAKER_CONFIG_DIR/env" | sed -e 's/^[^=][^=]*=//'`
 
     local connection_attempts=0
     local data_uploaded="false"
     while [ $connection_attempts -lt 8 -a "$data_uploaded" != "true" ]; do
         if echo "$es_pass" | kibana/import_dashboards.sh "kibana/kibana_dashboards.ndjson" >&2 ; then
+            echo2 "The installer successfully uploaded dashboards to Kibana."
             data_uploaded="true"
             break
         fi
+        echo2 "The installer encountered an error while uploading dashboards to Kibana."
+        echo2 "Retrying..."
         sleep 15
         connection_attempts=$((connection_attempts + 1))
     done
