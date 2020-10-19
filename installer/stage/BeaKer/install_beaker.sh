@@ -141,9 +141,9 @@ ensure_certificates_exist () {
         (cd "$BEAKER_CONFIG_DIR/certificates" && $SUDO unzip certs.zip > /dev/null)
         $SUDO rm "$BEAKER_CONFIG_DIR/certificates/certs.zip"
 
-	chmod 755 /etc/BeaKer/ /etc/BeaKer/certificates/ /etc/BeaKer/certificates/ca/ \
+	$SUDO chmod 755 /etc/BeaKer/ /etc/BeaKer/certificates/ /etc/BeaKer/certificates/ca/ \
 		/etc/BeaKer/certificates/Elasticsearch/ /etc/BeaKer/certificates/Kibana/
-	chmod 644 /etc/BeaKer/certificates/Kibana/Kibana.* /etc/BeaKer/certificates/Elasticsearch/Elasticsearch.* \
+	$SUDO chmod 644 /etc/BeaKer/certificates/Kibana/Kibana.* /etc/BeaKer/certificates/Elasticsearch/Elasticsearch.* \
 		/etc/BeaKer/certificates/ca/ca.*
     fi
 
