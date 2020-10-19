@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+
+# Change dir to script dir
+pushd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" > /dev/null
+
+
+# If the current user doesn't have docker permissions or
+# permission to open the env file, use sudo
+SUDO=
+if [ ! -w "/var/run/docker.sock" -o ! -r ".env" ]; then
+	SUDO="sudo --preserve-env"
+fi
+
+# Check for pre-requisites
+shell-lib/docker/check_docker.sh || echo "You do not have a supported version of Docker installed."
+shell-lib/docker/check_docker-compose.sh || echo "You do not have a supported version of Docker-Compose installed."
+
+# TMPDIR is erased even if -E is passed to sudo. https://serverfault.com/questions/478741/sudo-does-not-preserve-tmpdir
+# Need to explicitly pass tmpdir in if it exists.
+if [ -n "$TMPDIR" ]; then
+	$SUDO env "TMPDIR=$TMPDIR" docker-compose -f "docker-compose.yml" "$@"
+else
+	$SUDO docker-compose -f "docker-compose.yml" "$@"
+fi
+
+# Store the exit code from docker-compose to use later
+result=$?
+
+# Change back to original directory
+popd > /dev/null
+
+# Pass docker-compose's exit code through
+exit $result
