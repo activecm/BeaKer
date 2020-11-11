@@ -80,6 +80,14 @@ ensure_env_file_exists () {
 ###############################################################################
 
 ###############################################################################
+# Changing the elastic password in the Kibana UI requires also changing it
+# in this file.
+#
+# Once the password has been changed in both places, run "beaker up -d" to
+# restart the containers with the updated password.
+###############################################################################
+
+###############################################################################
 # Elastic Search Settings
 #
 ELASTIC_PASSWORD=${elastic_password}
