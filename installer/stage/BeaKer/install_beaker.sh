@@ -140,6 +140,11 @@ ensure_certificates_exist () {
             --name Kibana --pem --days 10950 --out /usr/share/elasticsearch/config/certificates/certs.zip > /dev/null
         (cd "$BEAKER_CONFIG_DIR/certificates" && $SUDO unzip certs.zip > /dev/null)
         $SUDO rm "$BEAKER_CONFIG_DIR/certificates/certs.zip"
+
+	$SUDO chmod 755 /etc/BeaKer/ /etc/BeaKer/certificates/ /etc/BeaKer/certificates/ca/ \
+		/etc/BeaKer/certificates/Elasticsearch/ /etc/BeaKer/certificates/Kibana/
+	$SUDO chmod 644 /etc/BeaKer/certificates/Kibana/Kibana.* /etc/BeaKer/certificates/Elasticsearch/Elasticsearch.* \
+		/etc/BeaKer/certificates/ca/ca.*
     fi
 
 }
