@@ -31,6 +31,7 @@ After Sysmon starts sending data to ElasticSearch, Kibana will be ready to go. F
 
 ### BeaKer Agent System Requirements
 * Operating System: Windows x86-64 bit OS
+* Powershell Version: 3+
 
 ### Automated Install: BeaKer Server
 
