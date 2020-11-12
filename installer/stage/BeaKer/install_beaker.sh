@@ -198,7 +198,7 @@ configure_ingest_account () {
     local es_pass=`$docker_sudo grep ELASTIC_PASSWORD "$BEAKER_CONFIG_DIR/env" | cut -d= -f2`
 
     # Don't configure the ingest account if it already exists
-    if curl -s -u "elastic:$es_pass" -X GET -k "https://localhost:9200/_security/user/sysmon-ingest" | grep -q "\"username\":\"sysmon-ingest\""; then
+    if curl --fail -s -u "elastic:$es_pass" -X GET -k "https://localhost:9200/_security/user/sysmon-ingest" | grep -q "\"username\":\"sysmon-ingest\""; then
         return
     fi
 
@@ -216,7 +216,7 @@ configure_ingest_account () {
         echo ""
     done
 
-    if ! curl -s -u "elastic:$es_pass" -X POST -k "https://localhost:9200/_security/role/sysmon-ingest" -H 'Content-Type: application/json' -d'
+    if ! curl --fail -s -u "elastic:$es_pass" -X POST -k "https://localhost:9200/_security/role/sysmon-ingest" -H 'Content-Type: application/json' -d'
     {
         "run_as": [],
         "cluster": [ "monitor", "manage_index_templates" ],
@@ -231,7 +231,7 @@ configure_ingest_account () {
         fail "Unable to create Elasticsearch ingest role."
     fi
 
-    if ! curl -s -u "elastic:$es_pass" -X POST -k "https://localhost:9200/_security/user/sysmon-ingest" -H 'Content-Type: application/json' -d"
+    if ! curl --fail -s -u "elastic:$es_pass" -X POST -k "https://localhost:9200/_security/user/sysmon-ingest" -H 'Content-Type: application/json' -d"
     {
         \"password\" : \"$ingest_password\",
         \"roles\" : [ \"sysmon-ingest\" ]
