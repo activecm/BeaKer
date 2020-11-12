@@ -76,7 +76,7 @@ The script will then:
 
 ### BeaKer Agent uninstall
 As an administrator, run the following scripts to uninstall the beaker agent:
-- `C:\Program Files\winlogbeat-7.5.2-windows-x86_64\uninstall-service-winlogbeat.ps`
+- `C:\Program Files\winlogbeat-7.5.2-windows-x86_64\uninstall-service-winlogbeat.ps1
 - `C:\Program Files\Sysmon\Sysmon64.exe -u`
 
 ### Data Collected By Sysmon Per Network Connection
