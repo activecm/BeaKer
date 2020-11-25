@@ -155,7 +155,7 @@ install_beaker () {
     # Determine if the current user has permission to run docker
     local docker_sudo=""
     if [ ! -w "/var/run/docker.sock" ]; then
-        docker_sudo="sudo"
+        docker_sudo="sudo -E"
     fi
 
     # Load the docker images
