@@ -3,9 +3,13 @@ name: Generate and upload a release assets
 on:
   release:
     types:
+      - published
+      #- unpublished
       - created
       - edited
+      #- deleted
       - prereleased
+      - released
 
 jobs:
   upload:
