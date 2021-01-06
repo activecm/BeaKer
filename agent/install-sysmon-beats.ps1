@@ -43,19 +43,19 @@ into the script in a secure environment. Instead, either leave the credentials b
 enter the credentials during the installation process, or edit the parameters' default values in the script.
 #>
 
-if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))  
-{  
-  $arguments = "& '" +$myinvocation.mycommand.definition + "'"
-  Start-Process powershell -Verb runAs -ArgumentList $arguments
-  Break
-}
-
 param (
     [Parameter(Mandatory=$true)][string]$ESHost,
     [string]$ESPort="9200",
     [string]$ESUsername="",
     [string]$ESPassword=""
 )
+
+if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))  
+{  
+  $arguments = "& '" +$myinvocation.mycommand.definition + "'"
+  Start-Process powershell -Verb runAs -ArgumentList $arguments
+  Break
+}
 
 if (-not (Test-Path "$Env:programfiles\Sysmon" -PathType Container)) {
   Invoke-WebRequest -OutFile Sysmon.zip https://download.sysinternals.com/files/Sysmon.zip
