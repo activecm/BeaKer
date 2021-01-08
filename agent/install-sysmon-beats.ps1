@@ -52,7 +52,7 @@ param (
 
 if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))  
 {  
-  $arguments = "& '" +$myinvocation.mycommand.definition + "'"
+  $arguments = "& '" +$myinvocation.mycommand.definition + "'", $args
   Start-Process powershell -Verb runAs -ArgumentList $arguments
   Break
 }
