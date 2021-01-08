@@ -15,39 +15,26 @@ The IP address or hostname of the Elasticsearch server to send connection logs. 
 .PARAMETER ESPort
 The port on which the Elasticsearch server is listening. Defaults to TCP 9200.
 
-.PARAMETER ESUsername
-Warning: Insecure!
-The username used to authenticate to the Elasticsearch server. If ESUsername is not specified,
-the script will ask for the username at runtime. In order to avoid recording the Elasticsearch
-username, consider editing this file. Change the line `[string]$ESUsername="",` to
-`[string]$ESUsername="YOUR_ELASTIC_USERNAME_HERE",.
-
-.PARAMETER ESPassword
-Warning: Insecure!
-The password used to authenticate to the Elasticsearch server. If ESPassword is not specified,
-the script will ask for the password at runtime. In order to avoid recording the Elasticsearch
-password, consider editing this file. Change the line `[string]$ESPassword="",` to
-`[string]$ESPassword="YOUR_ELASTIC_PASSWORD_HERE",.
+.PARAMETER ESCredential
+The username and password used to authenticate to the Elasticsearch server. If a powershell
+credential object is not specified, the script will ask for the credentials at runtime.
 
 .EXAMPLE
 # Asks for Elasticsearch authentication details at runtime
 .\install-sysmon-beats.ps1 my-es-host.com 9200
 
-# Reads Elasticsearch authentication details from the command line aguments
-.\install-sysmon-beats.ps1 my-es-host.com 9200 elastic elastic_password
-
 .NOTES
 The Elasticsearch credentials are stored locally using Elastic Winlogbeat's secure
-storage facilities. The ESUsername and ESPassword parameters should not be passed
-into the script in a secure environment. Instead, either leave the credentials blank and
-enter the credentials during the installation process, or edit the parameters' default values in the script.
+storage facilities. They can be passed into the script as a credential object as follows:
+$Cred = (Get-Credential -UserName example-username)
+.\install-sysmon-beats.ps1 my-es-host.com 9200 $Cred
 #>
 
 param (
     [Parameter(Mandatory=$true)][string]$ESHost,
     [string]$ESPort="9200",
-    [string]$ESUsername="",
-    [string]$ESPassword=""
+    [ValidateNotNull()][System.Management.Automation.PSCredential][System.Management.Automation.Credential()] $ESCredential = [System.Management.Automation.PSCredential]::Empty 
+    
 )
 
 if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))  
@@ -55,6 +42,14 @@ if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
   $arguments = "& '" +$myinvocation.mycommand.definition + "'", $args
   Start-Process powershell -Verb runAs -ArgumentList $arguments
   Break
+}
+
+if($ESCredential.username -eq $null)
+{
+    $ESUsername=Read-Host "Elasticsearch username"
+    $ESPassword=Read-Host "Elasticsearch password" -AsSecureString
+    $ESCredential=New-Object System.Management.Automation.PSCredential -ArgumentList $ESUsername, $ESPassword
+
 }
 
 if (-not (Test-Path "$Env:programfiles\Sysmon" -PathType Container)) {
@@ -138,7 +133,7 @@ echo @"
 "@ > "$Env:programfiles\Sysmon\sysmon-net-only.xml"
 
 
-& "$Env:programfiles\Sysmon\Sysmon64.exe" -accepteula -i "$Env:programfiles\Sysmon\sysmon-net-only.xml"
+& "$Env:programfiles\Sysmon\Sysmon64.exe" -accepteula -i "$Env:programfiles\Sysmon\sysmon-net-only.xml" 2>&1 | %{ "$_" }
 
 if (-not (Test-Path "$Env:programfiles\winlogbeat*" -PathType Container)) {
   Invoke-WebRequest -OutFile WinLogBeat.zip https://artifacts.elastic.co/downloads/beats/winlogbeat/winlogbeat-7.5.2-windows-x86_64.zip
@@ -149,13 +144,13 @@ if (-not (Test-Path "$Env:programfiles\winlogbeat*" -PathType Container)) {
 
 cd "$Env:programfiles\winlogbeat*\"
 .\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore create
-if($ESUsername) {
-  Write-Output "$ESUsername" | .\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore add ES_USERNAME --stdin
+if($ESCredential.UserName -ne $null) {
+  Write-Output $ESCredential.UserName | .\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore add ES_USERNAME --stdin
 } else {
   .\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore add ES_USERNAME
 }
-if($ESPassword) {
-  Write-Output "$ESPassword" | .\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore add ES_PASSWORD --stdin
+if($ESCredential.GetNetworkCredential().Password -ne $null) {
+  Write-Output $ESCredential.GetNetworkCredential().Password | .\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore add ES_PASSWORD --stdin
 } else {
   .\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore add ES_PASSWORD
 }
