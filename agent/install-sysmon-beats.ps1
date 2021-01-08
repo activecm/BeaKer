@@ -37,13 +37,6 @@ param (
     
 )
 
-if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))  
-{  
-  $arguments = "& '" +$myinvocation.mycommand.definition + "'", $args
-  Start-Process powershell -Verb runAs -ArgumentList $arguments
-  Break
-}
-
 if($ESCredential.username -eq $null)
 {
     $ESUsername=Read-Host "Elasticsearch username"
