@@ -50,6 +50,13 @@ param (
     [string]$ESPassword=""
 )
 
+if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))  
+{  
+  $arguments = "& '" +$myinvocation.mycommand.definition + "'", $args
+  Start-Process powershell -Verb runAs -ArgumentList $arguments
+  Break
+}
+
 if (-not (Test-Path "$Env:programfiles\Sysmon" -PathType Container)) {
   Invoke-WebRequest -OutFile Sysmon.zip https://download.sysinternals.com/files/Sysmon.zip
   Expand-Archive .\Sysmon.zip
