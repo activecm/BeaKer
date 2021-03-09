@@ -52,9 +52,23 @@ param (
 
 if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))  
 {  
-  $arguments = "& '" +$myinvocation.mycommand.definition + "'", $args
-  Start-Process powershell -Verb runAs -ArgumentList $arguments
-  Break
+    # Use param values instead of $args because $args doesn't appear to get populated if param values are specified
+    # Also set the ExecutionPolicy to Bypass otherwise this will likely fail as script
+    # execution is disabled by default.
+    $arguments = "-ExecutionPolicy", "Bypass", "-File", $myinvocation.mycommand.definition, $ESHost, $ESPort
+    if($ESUsername) 
+    {
+        # Only add this argument if the user provided it, otherwise it will be blank and will cause an error
+        $arguments += $ESUsername
+    }
+    if($ESPassword) 
+    {
+        # Only add this argument if the user provided it, otherwise it will be blank and will cause an error
+        $arguments += $ESPassword
+    }
+
+    Start-Process -FilePath powershell -Verb runAs -ArgumentList $arguments
+    Break
 }
 
 if (-not (Test-Path "$Env:programfiles\Sysmon" -PathType Container)) {
