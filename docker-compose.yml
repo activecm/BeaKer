@@ -8,6 +8,7 @@ services:
     restart: unless-stopped
     environment:
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - "ES_JAVA_OPTS=-Xms3g -Xmx3g"
     ports:
       - "${ELASTIC_HTTP_PORT:-9200}:9200"
     volumes:
