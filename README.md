@@ -103,6 +103,10 @@ As an administrator, run the following scripts to uninstall the beaker agent:
 - Timestamp
 
 ## Developer Information
+When cloning the project, ensure that you have cloned the git submodules as well.
+Either pass `--recurse-submodules` to `git clone` when pulling down the project, or run the following commands afterwards:
+- `cd BeaKer`
+- `git submodule update --init --recursive`
 
 To generate a new release tarball, run `./installer/generate_installer.sh`.
 
