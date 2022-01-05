@@ -35,7 +35,7 @@ After Sysmon starts sending data to ElasticSearch, Kibana will be ready to go. F
 
 ### Automated Install: BeaKer Server
 
-Download the latest release tar file, extract it, and inside the `BeaKer` directory,
+Download the [latest release](https://github.com/activecm/BeaKer/releases/latest) tar file, extract it, and inside the `BeaKer` directory,
 run `./install_beaker.sh` on the Linux machine that will aggregate your Sysmon data and host Kibana.
 
 The automated installer will:
