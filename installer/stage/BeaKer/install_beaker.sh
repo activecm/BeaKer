@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #Performs installation of BeaKer software
-#version = 1.0.0
+#version = 1.0.1
 
 #### Environment Set Up
 
@@ -56,7 +56,10 @@ install_docker () {
 ensure_env_file_exists () {
     $SUDO mkdir -p "$BEAKER_CONFIG_DIR"
 
-    if [ ! -f "$BEAKER_CONFIG_DIR/env" ]; then
+    if [ "$acm_no_interactive" != 'yes' ] && [ ! -f "$BEAKER_CONFIG_DIR/env" ]; then
+        echo2 "We are in non-interactive mode but there is no $BEAKER_CONFIG_DIR/env file, exiting."
+        exit 1
+    elif [ ! -f "$BEAKER_CONFIG_DIR/env" ]; then
         status "Generating BeaKer configuration"
         echo "Please enter a password for the admin Elasticsearch user account."
         echo "Username: elastic"
@@ -215,6 +218,11 @@ configure_ingest_account () {
         return
     fi
 
+    if [ "$acm_no_interactive" != 'yes' ]; then
+        echo2 "We are in non-interactive mode but the ingest account is not configured, exiting."
+        exit 1
+    fi
+
     status "Configuring Elasticsearch ingest account"
 
     echo "Please enter a password for the Elasticsearch Sysmon-ingest user account."
@@ -281,6 +289,7 @@ link_executables () {
 main () {
     status "Checking for administrator priviledges"
     require_sudo
+    export acm_no_interactive
 
     test_system
 
