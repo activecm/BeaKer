@@ -56,7 +56,7 @@ install_docker () {
 ensure_env_file_exists () {
     $SUDO mkdir -p "$BEAKER_CONFIG_DIR"
 
-    if [ "$acm_no_interactive" != 'yes' ] && [ ! -f "$BEAKER_CONFIG_DIR/env" ]; then
+    if [ "$acm_no_interactive" = 'yes' ] && [ ! -f "$BEAKER_CONFIG_DIR/env" ]; then
         echo2 "We are in non-interactive mode but there is no $BEAKER_CONFIG_DIR/env file, exiting."
         exit 1
     elif [ ! -f "$BEAKER_CONFIG_DIR/env" ]; then
@@ -218,7 +218,7 @@ configure_ingest_account () {
         return
     fi
 
-    if [ "$acm_no_interactive" != 'yes' ]; then
+    if [ "$acm_no_interactive" = 'yes' ]; then
         echo2 "We are in non-interactive mode but the ingest account is not configured, exiting."
         exit 1
     fi
