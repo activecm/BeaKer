@@ -164,7 +164,7 @@ if (-not (Test-Path "$Env:programfiles\winlogbeat*" -PathType Container)) {
   $winlogbeatName = Get-ChildItem -path .\WinlogBeat | where-object name -like winlogbeat*
   new-item -path "$Env:ProgramFiles\$($winlogbeatName.Name)" -ItemType Directory
   $WinlogBeatFiles = Get-ChildItem ".\WinLogBeat\$winlogbeatName"
-  foreach ($file in $WinlogBeatFiles){copy-item -path ".\WinLogBeat\$($winlogbeatName.Name)\$file" -Destination "$Env:ProgramFiles\$($winlogbeatName.Name)"}
+  foreach ($file in $WinlogBeatFiles){copy-item -path ".\WinLogBeat\$($winlogbeatName.Name)\$file" -Destination "$Env:ProgramFiles\$($winlogbeatName.Name)" -Recurse}
   remove-item .\WinLogBeat -Recurse
 }
 
