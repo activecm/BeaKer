@@ -161,11 +161,11 @@ if (-not (Test-Path "$Env:programfiles\winlogbeat*" -PathType Container)) {
   Invoke-WebRequest -OutFile WinLogBeat.zip https://artifacts.elastic.co/downloads/beats/winlogbeat/winlogbeat-7.5.2-windows-x86_64.zip
   Expand-Archive .\WinLogBeat.zip
   remove-item .\WinLogBeat.zip
-  $winlogbeatName = Get-ChildItem | where-object name -like winlogbeat*
+  $winlogbeatName = Get-ChildItem -path .\WinlogBeat | where-object name -like winlogbeat*
   new-item -path "$Env:ProgramFiles\$($winlogbeatName.Name)" -ItemType Directory
-  $WinlogBeatFiles = Get-ChildItem .\$winlogbeatName
-  foreach ($file in $WinlogBeatFiles){copy-item -path ".\$($winlogbeatName.Name)\$file" -Destination "$Env:ProgramFiles\$($winlogbeatName.Name)"}
-  remove-item .\$winlogbeatName -Recurse
+  $WinlogBeatFiles = Get-ChildItem ".\WinLogBeat\$winlogbeatName"
+  foreach ($file in $WinlogBeatFiles){copy-item -path ".\WinLogBeat\$($winlogbeatName.Name)\$file" -Destination "$Env:ProgramFiles\$($winlogbeatName.Name)"}
+  remove-item .\WinLogBeat -Recurse
 }
 
 cd "$Env:programfiles\winlogbeat*\"
@@ -211,5 +211,5 @@ output.elasticsearch:
     enabled: true
     verification_mode: none
 "@ > winlogbeat.yml
-PowerShell.exe -ExecutionPolicy UnRestricted -File .\install-service-winlogbeat.ps1
+PowerShell.exe -ExecutionPolicy UnRestricted -File "$Env:ProgramFiles\$($winlogbeatName.Name)\install-service-winlogbeat.ps1"
 Start-Service winlogbeat
