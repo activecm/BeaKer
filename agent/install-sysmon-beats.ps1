@@ -160,8 +160,12 @@ echo @"
 if (-not (Test-Path "$Env:programfiles\winlogbeat*" -PathType Container)) {
   Invoke-WebRequest -OutFile WinLogBeat.zip https://artifacts.elastic.co/downloads/beats/winlogbeat/winlogbeat-7.5.2-windows-x86_64.zip
   Expand-Archive .\WinLogBeat.zip
-  rm .\WinLogBeat.zip
-  mv .\WinLogBeat\winlogbeat* "$Env:programfiles"
+  remove-item .\WinLogBeat.zip
+  $winlogbeatName = Get-ChildItem | where-object name -like winlogbeat*
+  new-item -path "$Env:ProgramFiles\$($winlogbeatName.Name)" -ItemType Directory
+  $WinlogBeatFiles = Get-ChildItem .\$winlogbeatName
+  foreach ($file in $WinlogBeatFiles){copy-item -path ".\$($winlogbeatName.Name)\$file" -Destination "$Env:ProgramFiles\$($winlogbeatName.Name)"}
+  remove-item .\$winlogbeatName -Recurse
 }
 
 cd "$Env:programfiles\winlogbeat*\"
