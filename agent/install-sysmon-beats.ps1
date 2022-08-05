@@ -77,7 +77,7 @@ if (-not (Test-Path "$Env:programfiles\Sysmon" -PathType Container)) {
   remove-item .\Sysmon.zip
   new-item -path "$Env:ProgramFiles\Sysmon" -ItemType Directory
   $SysmonFiles = Get-ChildItem .\Sysmon
-  foreach ($file in $SysmonFiles){copy-item -path "./Sysmon/$file" -Destination "$Env:programfiles\Sysmon"}
+  foreach ($file in $SysmonFiles){copy-item -path ".\Sysmon\$file" -Destination "$Env:programfiles\Sysmon"}
   remove-item .\Sysmon -Recurse
 }
 
