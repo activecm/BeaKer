@@ -74,8 +74,11 @@ if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 if (-not (Test-Path "$Env:programfiles\Sysmon" -PathType Container)) {
   Invoke-WebRequest -OutFile Sysmon.zip https://download.sysinternals.com/files/Sysmon.zip
   Expand-Archive .\Sysmon.zip
-  rm .\Sysmon.zip
-  mv .\Sysmon\ "$Env:programfiles"
+  remove-item .\Sysmon.zip
+  new-item -path "$Env:ProgramFiles\Sysmon" -ItemType Directory
+  $SysmonFiles = Get-ChildItem .\Sysmon
+  foreach ($file in $SysmonFiles){copy-item -path ".\Sysmon\$file" -Destination "$Env:programfiles\Sysmon"}
+  remove-item .\Sysmon -Recurse
 }
 
 echo @"
@@ -157,8 +160,12 @@ echo @"
 if (-not (Test-Path "$Env:programfiles\winlogbeat*" -PathType Container)) {
   Invoke-WebRequest -OutFile WinLogBeat.zip https://artifacts.elastic.co/downloads/beats/winlogbeat/winlogbeat-7.5.2-windows-x86_64.zip
   Expand-Archive .\WinLogBeat.zip
-  rm .\WinLogBeat.zip
-  mv .\WinLogBeat\winlogbeat* "$Env:programfiles"
+  remove-item .\WinLogBeat.zip
+  $winlogbeatName = Get-ChildItem -path .\WinlogBeat | where-object name -like winlogbeat*
+  new-item -path "$Env:ProgramFiles\$($winlogbeatName.Name)" -ItemType Directory
+  $WinlogBeatFiles = Get-ChildItem ".\WinLogBeat\$winlogbeatName"
+  foreach ($file in $WinlogBeatFiles){copy-item -path ".\WinLogBeat\$($winlogbeatName.Name)\$file" -Destination "$Env:ProgramFiles\$($winlogbeatName.Name)" -Recurse}
+  remove-item .\WinLogBeat -Recurse
 }
 
 cd "$Env:programfiles\winlogbeat*\"
@@ -173,10 +180,6 @@ if($ESPassword) {
 } else {
   .\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore add ES_PASSWORD
 }
-
-# Set ACL's of the $Env:ProgramData\winlogbeat folder to be the same as $Env:ProgramFiles\winlogbeat* (the main install path)
-# This helps ensure that "normal" users aren't able to access the $Env:ProgramData\winlogbeat folder
-Get-ACL -Path "$Env:ProgramFiles\winlogbeat*" | Set-ACL -Path "$Env:ProgramData\winlogbeat"
 
 rm .\winlogbeat.yml
 echo @"
@@ -204,5 +207,5 @@ output.elasticsearch:
     enabled: true
     verification_mode: none
 "@ > winlogbeat.yml
-PowerShell.exe -ExecutionPolicy UnRestricted -File .\install-service-winlogbeat.ps1
+PowerShell.exe -ExecutionPolicy UnRestricted -File "$Env:ProgramFiles\$($winlogbeatName.Name)\install-service-winlogbeat.ps1"
 Start-Service winlogbeat
