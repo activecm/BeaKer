@@ -23,7 +23,7 @@ After Sysmon starts sending data to ElasticSearch, Kibana will be ready to go. F
 ## Installation
 
 ### BeaKer Server System Requirements
-* Operating System: The preferred platform is x86 64-bit Ubuntu 16.04 LTS. The system should be patched and up to date using apt-get.
+* Operating System: The preferred platform is x86 64-bit Ubuntu 20.04 LTS. The system should be patched and up to date using apt-get.
   * The automated installer will also support CentOS 7.
 * Processor: Two or more cores. Elasticsearch uses parallel processing and benefits from more CPU cores.
 * Memory: 8-64GB. Monitoring more hosts requires more RAM.
@@ -32,11 +32,15 @@ After Sysmon starts sending data to ElasticSearch, Kibana will be ready to go. F
 ### BeaKer Agent System Requirements
 * Operating System: Windows x86-64 bit OS
 * Powershell Version: 3+
+* Installed WinLogBeats version must be <= the Elasticsearch version installed on the BeaKer server, but at least the minimum supported wire version for the Elasticsearch version
+  * E.g. Elasticsearch v8.6.2 supports WinLogBeats 7.17.0 through 8.6.2 
 
 ### Automated Install: BeaKer Server
 
 Download the [latest release](https://github.com/activecm/BeaKer/releases/latest) tar file, extract it, and inside the `BeaKer` directory,
 run `./install_beaker.sh` on the Linux machine that will aggregate your Sysmon data and host Kibana.
+
+** Note that existing BeaKer installations must be upgraded to v7.17 before they can be upgraded to v8.x. The automated installer 
 
 The automated installer will:
   - Install Docker and Docker-Compose
@@ -44,6 +48,7 @@ The automated installer will:
   - Install Elasticsearch, Kibana, and load the dashboards
   - Set the Elasticsearch superuser password for the `elastic` account
   - Set the `sysmon-ingest` user password for connecting WinLogBeats
+  - Set up index templates, ILM policy, data streams and ingest pipelines 
 
 The `beaker` script installed to `/usr/local/bin/beaker` is a wrapper around `docker-compose` and can be used to manage BeaKer.
  - To stop BeaKer, run `beaker down`
@@ -55,7 +60,11 @@ After running `./install_beaker.sh` you should be able to access Kibana at `loca
 
 Use the `elastic` account to perform your initial login to Kibana. Additional user accounts can be created using the Kibana interface. The `sysmon-ingest` user account is not allowed to access Kibana.
 
-The Elasticsearch server will begin listening for connections on port 9200 using HTTPS. It expects Sysmon ID 3 Network Events to be published to the ES index `sysmon-%{+YYYY.MM.dd}` using the WinLogBeat schema. See the embedded `winlogbeat.yml` file in `./agent/install-sysmon-beats.ps1` for more info.
+The Elasticsearch server will begin listening for connections on port 9200 using HTTPS. It expects Sysmon ID 3 Network Events to be published to:
+- WinLogBeats less than v7.17.9: ES index `sysmon-%{+YYYY.MM.dd}`
+- WinLogBeats v7.17.9: ES index `winlogbeat-%{[agent.version]}` via data stream
+- WinLogBeats v8.6.2: Ingest Pipeline `winlogbeat-%{[agent.version]}-routing`
+See the embedded `winlogbeat.yml` file in `./agent/install-sysmon-beats.ps1` for more info.
 
 The easiest way to begin sending data to the server is to use the automated BeaKer agent installer.
 

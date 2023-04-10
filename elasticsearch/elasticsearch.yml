@@ -16,3 +16,4 @@
   xpack.security.http.ssl.certificate_authorities: [ "/usr/share/elasticsearch/config/certificates/ca/ca.crt" ]
   xpack.security.http.ssl.certificate: /usr/share/elasticsearch/config/certificates/Elasticsearch/Elasticsearch.crt
   xpack.security.http.ssl.key: /usr/share/elasticsearch/config/certificates/Elasticsearch/Elasticsearch.key
+  path.repo: ["/usr/share/elasticsearch/snapshots"]

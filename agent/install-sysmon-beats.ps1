@@ -44,25 +44,49 @@ enter the credentials during the installation process, or edit the parameters' d
 #>
 
 param (
-    [Parameter(Mandatory=$true)][string]$ESHost,
-    [string]$ESPort="9200",
-    [string]$ESUsername="",
-    [string]$ESPassword=""
+    [Parameter(Mandatory = $true)][string]$ESHost,
+    [string]$ESPort = "9200",
+    [string]$ESUsername = "",
+    [string]$ESPassword = "",
+    [string]$BeatsVersion = ""
 )
 
-if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))  
-{  
+$ELK_STACK_VERSION = "8.7.0"
+
+[bool] $OverrideBeatsVersion = $false
+if ([string]::IsNullOrWhiteSpace("$BeatsVersion")) {
+    $BeatsVersion = "$ELK_STACK_VERSION"
+}
+else {
+    if ($null -eq ("$BeatsVersion" -as [System.Version])) {
+        throw "Beats version $BeatsVersion is not a valid version, please provide a valid version number."
+    }
+    if ([System.Version]$BeatsVersion -lt [System.Version]"7.17.9") {
+        throw "Minimum supported Beats version is 7.17.9, exiting"
+    }
+    $OverrideBeatsVersion = $true
+}
+
+# Check for existing winlogbeat installation via Espy
+if (Test-Path "$Env:programfiles\Winlogbeat-Espy" -PathType Container) {
+    Write-Output "Detected existing winlogbeat installation performed by Espy. Continuing the install may result in a partially working Sysmon/winlogbeat setup."
+    $installAnyway = Read-Host -Prompt "Are you sure you want to continue? [y/n]"
+    if (($installAnyway -eq 'n') -or ($installAnyway -eq 'N')) {
+        Exit
+    }
+}
+
+
+if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {  
     # Use param values instead of $args because $args doesn't appear to get populated if param values are specified
     # Also set the ExecutionPolicy to Bypass otherwise this will likely fail as script
     # execution is disabled by default.
     $arguments = "-ExecutionPolicy", "Bypass", "-File", $myinvocation.mycommand.definition, $ESHost, $ESPort
-    if($ESUsername) 
-    {
+    if ($ESUsername) {
         # Only add this argument if the user provided it, otherwise it will be blank and will cause an error
         $arguments += $ESUsername
     }
-    if($ESPassword) 
-    {
+    if ($ESPassword) {
         # Only add this argument if the user provided it, otherwise it will be blank and will cause an error
         $arguments += $ESPassword
     }
@@ -72,10 +96,11 @@ if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 }
 
 if (-not (Test-Path "$Env:programfiles\Sysmon" -PathType Container)) {
-  Invoke-WebRequest -OutFile Sysmon.zip https://download.sysinternals.com/files/Sysmon.zip
-  Expand-Archive .\Sysmon.zip
-  rm .\Sysmon.zip
-  mv .\Sysmon\ "$Env:programfiles"
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    Invoke-WebRequest -OutFile Sysmon.zip https://download.sysinternals.com/files/Sysmon.zip
+    Expand-Archive .\Sysmon.zip
+    rm .\Sysmon.zip
+    mv .\Sysmon\ "$Env:programfiles"
 }
 
 echo @"
@@ -154,32 +179,109 @@ echo @"
 
 & "$Env:programfiles\Sysmon\Sysmon64.exe" -accepteula -i "$Env:programfiles\Sysmon\sysmon-net-only.xml"
 
-if (-not (Test-Path "$Env:programfiles\winlogbeat*" -PathType Container)) {
-  Invoke-WebRequest -OutFile WinLogBeat.zip https://artifacts.elastic.co/downloads/beats/winlogbeat/winlogbeat-7.5.2-windows-x86_64.zip
-  Expand-Archive .\WinLogBeat.zip
-  rm .\WinLogBeat.zip
-  mv .\WinLogBeat\winlogbeat* "$Env:programfiles"
+$InstalledBeatsVersion = ""
+[bool] $DownloadWinlogbeat = $false
+
+# Check for fresh install or pre-7.17 install
+if (-not (Test-Path "$Env:programfiles\Winlogbeat-BeaKer\winlogbeat.exe" -PathType Leaf)) {
+    $DownloadWinlogbeat = $true
+  
+    # Create install directory if it doesn't exist
+    if (-not (Test-Path "$Env:programfiles\Winlogbeat-BeaKer" -PathType Container)) {
+        mkdir "$Env:programfiles\Winlogbeat-BeaKer" > $null
+    }
+  
+    # Check if this is a pre-7.17 upgrade install
+    if ((Test-Path "$Env:programfiles\winlogbeat-7*" -PathType Container)) {
+        ### Make sure that Beats is upgraded to 7.17 before installing v8.x
+        # Install winlogbeat 7.17.9 if the current version is less than 8.x
+        if (!$OverrideBeatsVersion) {
+            $BeatsVersion = "7.17.9"
+        }
+        Copy-Item "$Env:programfiles\winlogbeat-7*\winlogbeat.yml" "$Env:programfiles\Winlogbeat-BeaKer"
+    }
+}
+else {
+    # Check if currently installed version is outdated
+    $InstalledBeatsVersion = (& "$Env:programfiles\Winlogbeat-BeaKer\winlogbeat.exe" version | Select-String -Pattern "(?<=winlogbeat version )(\d+\.\d+\.\d+)").Matches.Value
+    if ($null -eq ("$InstalledBeatsVersion" -as [System.Version])) {
+  
+        if (!$OverrideBeatsVersion) {
+            throw "Unable to retrieve installed winlogbeat version"
+        }
+        else {
+            Write-Output "Unable to retrieve installed winlogbeat version, continuing anyway"
+            $DownloadWinlogbeat = $true
+        }
+    }
+    else {
+        if ([System.Version]"$InstalledBeatsVersion" -lt [System.Version]"$BeatsVersion") {
+            $DownloadWinlogbeat = $true
+        }
+    }
+}
+    
+# Download winlogbeat and move it to install directory
+if ($DownloadWinlogbeat) {
+    Write-Output "######## Downloading winlogbeat version $BeatsVersion ########"
+
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    Invoke-WebRequest -OutFile WinLogBeat.zip https://artifacts.elastic.co/downloads/beats/winlogbeat/winlogbeat-"$BeatsVersion"-windows-x86_64.zip
+    Expand-Archive .\WinLogBeat.zip
+    rm .\WinLogBeat.zip
+    rm .\WinLogBeat\winlogbeat*\winlogbeat.yml
+
+    # Stop winlogbeat service if it exists 
+    if (Get-Service winlogbeat -ErrorAction SilentlyContinue) {
+        Stop-Service winlogbeat
+        (Get-Service winlogbeat).WaitForStatus('Stopped')
+        Start-Sleep -s 1
+    }
+    Copy-Item -Path .\WinLogBeat\winlogbeat*\* -Destination "$Env:programfiles\Winlogbeat-BeaKer\" -Recurse -Force
+    rm .\Winlogbeat -Recurse
 }
 
-cd "$Env:programfiles\winlogbeat*\"
-.\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore create
-if($ESUsername) {
-  Write-Output "$ESUsername" | .\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore add ES_USERNAME --stdin
-} else {
-  .\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore add ES_USERNAME
+Write-Output "######## Installing winlogbeat version $BeatsVersion ########"
+
+
+# Begin winlogbeat configuration
+Set-Location "$Env:programfiles\Winlogbeat-BeaKer\"
+
+# Backup winlogbeat config if it exists
+if (Test-Path -PathType Leaf .\winlogbeat.yml) {
+    if ($DownloadWinlogbeat) {
+        # Backup config with its version in the name if upgrading to a new Beats version
+        # so that the config isn't overwritten by subsequent upgrades. This is useful in case
+        # breaking changes between configurations need to be referenced in the future for troubleshooting
+        Copy-Item .\winlogbeat.yml .\winlogbeat-$InstalledBeatsVersion-old.yml.bak
+    }
+    else {
+        Copy-Item .\winlogbeat.yml .\winlogbeat.yml.bak
+    }
 }
-if($ESPassword) {
-  Write-Output "$ESPassword" | .\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore add ES_PASSWORD --stdin
-} else {
-  .\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore add ES_PASSWORD
+
+.\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore create
+if ($ESUsername) {
+    Write-Output "$ESUsername" | .\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore add ES_USERNAME --stdin
+}
+else {
+    .\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore add ES_USERNAME
+}
+if ($ESPassword) {
+    Write-Output "$ESPassword" | .\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore add ES_PASSWORD --stdin
+}
+else {
+    .\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore add ES_PASSWORD
 }
 
 # Set ACL's of the $Env:ProgramData\winlogbeat folder to be the same as $Env:ProgramFiles\winlogbeat* (the main install path)
 # This helps ensure that "normal" users aren't able to access the $Env:ProgramData\winlogbeat folder
-Get-ACL -Path "$Env:ProgramFiles\winlogbeat*" | Set-ACL -Path "$Env:ProgramData\winlogbeat"
+Get-ACL -Path "$Env:ProgramFiles\\Winlogbeat-BeaKer*" | Set-ACL -Path "$Env:ProgramData\\winlogbeat"
 
 rm .\winlogbeat.yml
-echo @"
+
+if ([System.Version]$BeatsVersion -lt [System.Version]"8.0.0") {
+    Write-Output @"
 winlogbeat.event_logs:
   - name: Microsoft-Windows-Sysmon/Operational
     event_id: 3
@@ -190,19 +292,40 @@ winlogbeat.event_logs:
           file: ${path.home}/module/sysmon/config/winlogbeat-sysmon.js
 
 setup.ilm.enabled: false
-setup.template.enabled: true
-setup.template.name: `"sysmon`"
-setup.template.pattern: `"sysmon-*`"
+setup.template.name: `"winlogbeat-%{[agent.version]}`"
+setup.template.pattern: `"winlogbeat-%{[agent.version]}`"
 
 output.elasticsearch:
   hosts:
     - https://${ESHost}:${ESPort}
-  index: `"sysmon-%{+YYYY.MM.dd}`"
+  index: `"winlogbeat-%{[agent.version]}`"
   username: `"`${ES_USERNAME}`"
   password: `"`${ES_PASSWORD}`"
   ssl:
     enabled: true
     verification_mode: none
 "@ > winlogbeat.yml
+}
+else {
+    Write-Output @"
+winlogbeat.event_logs:
+    - name: Microsoft-Windows-Sysmon/Operational
+      event_id: 3
+
+setup.ilm.enabled: false
+
+output.elasticsearch:
+  hosts:
+    - https://${ESHost}:${ESPort}
+  pipeline: winlogbeat-%{[agent.version]}-routing
+  username: `"`${ES_USERNAME}`"
+  password: `"`${ES_PASSWORD}`"
+  ssl:
+    enabled: true
+    verification_mode: none
+"@ > winlogbeat.yml
+}
+
 PowerShell.exe -ExecutionPolicy UnRestricted -File .\install-service-winlogbeat.ps1
+
 Start-Service winlogbeat
