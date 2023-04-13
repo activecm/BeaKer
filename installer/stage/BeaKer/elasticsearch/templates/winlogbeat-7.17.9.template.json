@@ -1,5 +1,9 @@
 {
   "priority": 150,
+  "index_patterns": [
+    "winlogbeat-7.17.9"
+  ],
+  "data_stream": {},
   "template": {
     "aliases": {
       "winlogbeat": {}
@@ -7325,9 +7329,5 @@
       "date_detection": false
     }
   },
-  "index_patterns": [
-    "winlogbeat-7.17.9"
-  ],
-  "data_stream": {},
   "composed_of": []
 }

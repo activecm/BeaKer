@@ -10,17 +10,19 @@ pushd "$SCRIPT_DIR/../" > /dev/null
 readarray elk_versions < ./ELK_VERSIONS
 # These images are exported in the deployment after running pulls/builds
 DOCKER_EXPORT_IMAGES="taskrabbit/elasticsearch-dump:v6.28.0\n"
+DOCKER_EXPORT_IMAGES="${DOCKER_EXPORT_IMAGES}activecm-beaker/check_kibana:latest\n"
+
 # Create elasticsearch & kibana images for each version defined in ELK_VERSIONS
 for version in "${elk_versions[@]}"; do
-    DOCKER_EXPORT_IMAGES="${DOCKER_EXPORT_IMAGES}activecm-beaker/elasticsearch:$version"
-    DOCKER_EXPORT_IMAGES="${DOCKER_EXPORT_IMAGES}activecm-beaker/kibana:$version"
+  DOCKER_EXPORT_IMAGES="${DOCKER_EXPORT_IMAGES}activecm-beaker/elasticsearch:$version"
+  DOCKER_EXPORT_IMAGES="${DOCKER_EXPORT_IMAGES}activecm-beaker/kibana:$version"
 done 
 DOCKER_EXPORT_IMAGES=$(echo -e "$DOCKER_EXPORT_IMAGES")
 echo "###### EXPORTING THE FOLLOWING IMAGES: ######"
 echo "$DOCKER_EXPORT_IMAGES"
 
 # These services are always built unless --no-build is passed in
-DOCKER_BUILD_SERVICES="elasticsearch kibana"
+DOCKER_BUILD_SERVICES="elasticsearch kibana check_kibana"
 # These services are always pulled unless --no-pull is passsed in
 DOCKER_PULL_SERVICES="es-dump"
 
@@ -101,7 +103,7 @@ if [ ! "$NO_BUILD" ]; then
     $SUDO docker-compose pull $DOCKER_PULL_SERVICES
     for version in "${elk_versions[@]}"; do
       v=$(echo $version|tr -d '\n')
-      export ELK_STACK_VERSION="$v"
+      #export ELK_STACK_VERSION="$v"
       $SUDO -E docker-compose build --build-arg ELK_STACK_VERSION="$v" --pull $NO_CACHE $DOCKER_BUILD_SERVICES
     done
   fi

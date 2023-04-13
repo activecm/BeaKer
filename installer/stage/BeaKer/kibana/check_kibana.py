@@ -1,1 +1,0 @@
-../../../../kibana/check_kibana.py

@@ -94,6 +94,7 @@ ensure_env_file_exists () {
             read -es -p "Password (Confirmation): " pw_confirmation
             echo ""
         done
+        # This is a fresh install, so set the version to the newest version available
         elastic_version=$( tail -n 1 ELK_VERSIONS )
         cat << EOF | $SUDO tee "$BEAKER_CONFIG_DIR/env" > /dev/null
 ###############################################################################
@@ -136,8 +137,12 @@ ELK_STACK_VERSION=${elastic_version}
 
 EOF
     else
+        # If the env file exists, then this is an upgrade install
         UPGRADE_INSTALL=true
         
+        # The KIBANA_SERVICE_TOKEN entry was introduced for v7.17+
+        # If the KIBANA_SERVICE_TOKEN entry doesn't exist, then the installed version
+        # must be less than 7.17, so set it as 7.0.0
         if ! $("$docker_sudo" grep -q "^KIBANA_SERVICE_TOKEN" "$BEAKER_CONFIG_DIR/env" ); then
             cat << EOF | $SUDO tee -a "$BEAKER_CONFIG_DIR/env" > /dev/null
 
@@ -206,6 +211,9 @@ ensure_certificates_exist () {
         $SUDO rm -rf "$BEAKER_CONFIG_DIR/certificates"
         $SUDO mkdir "$BEAKER_CONFIG_DIR/certificates"
 
+        # The following beaker commands must be run using the root user since the elasticsearch container
+        # runs with the elasticsearch user by default, and the certificates directory is owned by root
+
         # Create CA
         ./beaker run --rm --user root elasticsearch /usr/share/elasticsearch/bin/elasticsearch-certutil ca --pem \
         --days 10950 --out /usr/share/elasticsearch/config/certificates/ca.zip > /dev/null
@@ -242,7 +250,7 @@ require_elasticsearch_api_up() {
     local connection_attempts=0
     local elastic_api_up="false"
     while [ $connection_attempts -lt 8 -a "$elastic_api_up" != "true" ]; do
-        if curl --fail -s -u "elastic:$es_pass" -XGET -k "https://localhost:9200" > /dev/null ; then
+        if printf -- '-u "%s"' "elastic:$es_pass" | curl --fail -s -XGET -k -K- "https://localhost:9200" > /dev/null ; then
             echo2 "The Elasticsearch API is up and running."
             elastic_api_up="true"
             break
@@ -265,7 +273,7 @@ require_kibana_available() {
     local connection_attempts=0
     local kibana_available="false"
     while [ $connection_attempts -lt $attempts -a "$kibana_available" != "true" ]; do
-        if curl --fail -s -u "elastic:$es_pass" -XGET -k "https://localhost:5601/api/status" | python3 ./kibana/check_kibana.py ; then
+        if printf -- '-u "%s"' "elastic:$es_pass" | curl --fail -s -XGET -k -K- "https://localhost:5601/api/status" | ./beaker run --rm check_kibana ; then
             echo2 "Kibana is up and running."
             kibana_available="true"
             break
@@ -285,9 +293,9 @@ create_snapshot() {
     local repository_ok=true
 
     # Check if snapshot repository already exists
-    if ! curl --fail -s u "elastic:$es_pass" -k "https://localhost:9200/_snapshot/beaker" > /dev/null ; then
+    if ! printf -- '-u "%s"' "elastic:$es_pass" | curl --fail -s -k -K- "https://localhost:9200/_snapshot/beaker" > /dev/null ; then
         # Create snapshot repository if it doesn't exist
-        if ! curl --fail -s -u "elastic:$es_pass" -X PUT -k "https://localhost:9200/_snapshot/beaker" -H 'Content-Type: application/json' -d'{
+        if ! printf -- '-u "%s"' "elastic:$es_pass" | curl --fail -s -X PUT -k -K- "https://localhost:9200/_snapshot/beaker" -H 'Content-Type: application/json' -d'{
         "type": "fs",
         "settings": {
             "location": "/usr/share/elasticsearch/snapshots"
@@ -300,14 +308,14 @@ create_snapshot() {
     fi
 
     if "$repository_ok" ; then 
-        local output=$(curl -s -u "elastic:$es_pass" -XGET -k "https://localhost:9200/_snapshot/beaker/beaker_snapshot*")
+        local output=$(printf -- '-u "%s"' "elastic:$es_pass" | curl -s -XGET -k -K- "https://localhost:9200/_snapshot/beaker/beaker_snapshot*")
         snapshot_iteration=1
         existing_snapshot=$(echo "$output" | { grep -o '"snapshot":"beaker_snapshot-[[:digit:]]*.[[:digit:]]*.[[:digit:]]*-[[:digit:]]*' || true; })
         if [ -n "$existing_snapshot" ]; then
             iteration=${existing_snapshot##*-}
             snapshot_iteration=$(( $iteration + 1 ))
         fi
-        if ! curl --fail -s -u "elastic:$es_pass" -X PUT -k "https://localhost:9200/_snapshot/beaker/%3Cbeaker_snapshot-%7Bnow%2Fd%7D-$snapshot_iteration%3E?wait_for_completion=true" > /dev/null ; then
+        if ! printf -- '-u "%s"' "elastic:$es_pass" | curl --fail -s -X PUT -k -K- "https://localhost:9200/_snapshot/beaker/%3Cbeaker_snapshot-%7Bnow%2Fd%7D-$snapshot_iteration%3E?wait_for_completion=true" > /dev/null ; then
             printf "${YELLOW}[!!!] Couldn't create snapshot... If you continue the installation without a snapshot and are unable to recover your data, you will NOT be able to downgrade.${NC}\n"
             echo "Would you like to stop the installation and manually create a snapshot? (Y/N, recommended: Y)"
             if askYN ; then
@@ -340,7 +348,7 @@ create_service_account_token() {
     if [ -n "$service_token" -a "$service_token" != "KIBANA_TOKEN_PLACEHOLDER" ]; then
         # Token was already generated, could be upgrade install or overwrite install
         # Check to see if token is valid
-        if curl --fail -s -k -H "Authorization: Bearer $service_token" "https://localhost:9200/_security/_authenticate" > /dev/null ; then
+        if printf -- '-H "%s"' "Authorization: Bearer $service_token" | curl --fail -s -k -K- "https://localhost:9200/_security/_authenticate" > /dev/null ; then
             # Token is valid, don't modify anything
             token_already_valid=true
             echo "Kibana service account token already exists and is valid, skipping creation"
@@ -349,16 +357,16 @@ create_service_account_token() {
 
     if ! "$token_already_valid"; then 
         # Verify that the token does exist for the elastic/kibana service account
-        if ! curl --fail -s -u "elastic:$es_pass" -X GET -k "https://localhost:9200/_security/service/elastic/kibana/credential" | grep -q "\"kibana-beaker\""; then
+        if ! printf -- '-u "%s"' "elastic:$es_pass" | curl --fail -s -X GET -k -K- "https://localhost:9200/_security/service/elastic/kibana/credential" | grep -q "\"kibana-beaker\""; then
             echo "Token does not already exist, creating..."
         else
             echo "Token already exists, recreating..."
-            if ! curl --fail -s -u "elastic:$es_pass" -X DELETE -k "https://localhost:9200/_security/service/elastic/kibana/credential/token/kibana-beaker" > /dev/null; then
+            if ! printf -- '-u "%s"' "elastic:$es_pass" | curl --fail -s -X DELETE -k -K- "https://localhost:9200/_security/service/elastic/kibana/credential/token/kibana-beaker" > /dev/null; then
                 fail "Failed to remove service account token" 
             fi
         fi
 
-        local output=$(curl -s -u "elastic:$es_pass" -X PUT -k "https://localhost:9200/_security/service/elastic/kibana/credential/token/kibana-beaker")
+        local output=$(printf -- '-u "%s"' "elastic:$es_pass" | curl -s -X PUT -k -K- "https://localhost:9200/_security/service/elastic/kibana/credential/token/kibana-beaker")
         has_token=$(echo "$output" | { grep -o "\"value\":\".*\"" || true; })
         if [ -n "$has_token" ]; then
             local new_token=${has_token##*\":} # grab the portion of the string that comes after "value":
@@ -397,9 +405,9 @@ create_index_lifecycle_policy() {
     fi
 
     # Check if policy exists
-    if ! curl --fail -s -u "elastic:$es_pass" -XGET -k "https://localhost:9200/_ilm/policy/beaker" > /dev/null; then
+    if ! printf -- '-u "%s"' "elastic:$es_pass" | curl --fail -s -XGET -k -K- "https://localhost:9200/_ilm/policy/beaker" > /dev/null; then
         # Load policy if it doesn't exist
-        if ! curl --fail -u "elastic:$es_pass" -X PUT -k "https://localhost:9200/_ilm/policy/beaker" -H 'Content-Type: application/json' --data-binary "@$INDEX_LIFECYCLE_POLICY" > /dev/null; then
+        if ! printf -- '-u "%s"' "elastic:$es_pass" | curl --fail -X PUT -k -K- "https://localhost:9200/_ilm/policy/beaker" -H 'Content-Type: application/json' --data-binary "@$INDEX_LIFECYCLE_POLICY" > /dev/null; then
             fail "Couldn't load index lifecycle policy" 
         fi
         printf "  ${GREEN}\u2714${NC} Loaded winlogbeat index lifecycle policy\n"
@@ -423,15 +431,15 @@ create_data_stream() {
     fi
 
      # Load index template
-    if ! curl --fail -u "elastic:$es_pass" -X PUT -k "https://localhost:9200/_index_template/winlogbeat-$version" -H 'Content-Type: application/json' --data-binary "@$INDEX_TEMPLATE" > /dev/null; then
+    if ! printf -- '-u "%s"' "elastic:$es_pass" | curl --fail -X PUT -k -K- "https://localhost:9200/_index_template/winlogbeat-$version" -H 'Content-Type: application/json' --data-binary "@$INDEX_TEMPLATE" > /dev/null; then
         fail "Couldn't load winlogbeat-$version index template" 
     else 
         printf "  ${GREEN}\u2714${NC} Loaded winlogbeat-$version index template\n"
         # Check if data stream exists, as this route doesn't accept overwriting with PUT
-        if curl -s -u "elastic:$es_pass" -XGET -k "https://localhost:9200/_data_stream/winlogbeat-$version" | grep -q "index_not_found_exception"; then
+        if printf -- '-u "%s"' "elastic:$es_pass" | curl -s -XGET -k -K- "https://localhost:9200/_data_stream/winlogbeat-$version" | grep -q "index_not_found_exception"; then
             # Load data stream since it doesn't already exist
             echo "Data stream doesn't exist, creating..."
-            if ! curl --fail -s -u "elastic:$es_pass" -X PUT -k "https://localhost:9200/_data_stream/winlogbeat-$version" > /dev/null; then
+            if ! printf -- '-u "%s"' "elastic:$es_pass" | curl --fail -s -X PUT -k -K- "https://localhost:9200/_data_stream/winlogbeat-$version" > /dev/null; then
                 fail "Couldn't load winlogbeat-$version data stream" 
             fi
             printf "  ${GREEN}\u2714${NC} Loaded winlogbeat-$version data stream\n"
@@ -466,27 +474,27 @@ create_ingest_pipelines() {
     require_elasticsearch_api_up "$es_pass"
 
     # Load winlogbeat-x.x.x-routing ingest pipeline
-    if ! curl --fail -u "elastic:$es_pass" -X PUT -k "https://localhost:9200/_ingest/pipeline/winlogbeat-$version-routing" -H 'Content-Type: application/json' --data-binary "@$ROUTING_PIPELINE" > /dev/null; then
+    if ! printf -- '-u "%s"' "elastic:$es_pass" | curl --fail -X PUT -k -K- "https://localhost:9200/_ingest/pipeline/winlogbeat-$version-routing" -H 'Content-Type: application/json' --data-binary "@$ROUTING_PIPELINE" > /dev/null; then
         fail "Couldn't load winlogbeat-$version routing ingest pipeline"
     else
         # Load winlogbeat-x.x.x-sysmon ingest pipeline
         printf "  ${GREEN}\u2714${NC} Loaded winlogbeat-$version routing ingest pipeline\n"
-        if ! curl --fail -u "elastic:$es_pass" -X PUT -k "https://localhost:9200/_ingest/pipeline/winlogbeat-$version-sysmon" -H 'Content-Type: application/json' --data-binary "@$SYSMON_PIPELINE" > /dev/null; then
+        if ! printf -- '-u "%s"' "elastic:$es_pass" | curl --fail -X PUT -k -K- "https://localhost:9200/_ingest/pipeline/winlogbeat-$version-sysmon" -H 'Content-Type: application/json' --data-binary "@$SYSMON_PIPELINE" > /dev/null; then
             fail "Couldn't load winlogbeat-$version sysmon ingest pipeline"
         else
             # Load winlogbeat-x.x.x-security ingest pipeline
             printf "  ${GREEN}\u2714${NC} Loaded winlogbeat-$version sysmon ingest pipeline\n"
-            if ! curl --fail -u "elastic:$es_pass" -X PUT -k "https://localhost:9200/_ingest/pipeline/winlogbeat-$version-security" -H 'Content-Type: application/json' --data-binary "@$SECURITY_PIPELINE" > /dev/null; then
+            if ! printf -- '-u "%s"' "elastic:$es_pass" | curl --fail -X PUT -k -K- "https://localhost:9200/_ingest/pipeline/winlogbeat-$version-security" -H 'Content-Type: application/json' --data-binary "@$SECURITY_PIPELINE" > /dev/null; then
                 fail "Couldn't load winlogbeat-$version security ingest pipeline"
             else 
                 # Load winlogbeat-x.x.x-powershell ingest pipeline
                 printf "  ${GREEN}\u2714${NC} Loaded winlogbeat-$version security ingest pipeline\n"
-                if ! curl --fail -u "elastic:$es_pass" -X PUT -k "https://localhost:9200/_ingest/pipeline/winlogbeat-$version-powershell" -H 'Content-Type: application/json' --data-binary "@$POWERSHELL_PIPELINE" > /dev/null; then
+                if ! printf -- '-u "%s"' "elastic:$es_pass" | curl --fail -X PUT -k -K- "https://localhost:9200/_ingest/pipeline/winlogbeat-$version-powershell" -H 'Content-Type: application/json' --data-binary "@$POWERSHELL_PIPELINE" > /dev/null; then
                     fail "Couldn't load winlogbeat-$version powershell ingest pipeline"
                 else 
                     # Load winlogbeat-x.x.x-powershell_operational ingest pipeline
                     printf "  ${GREEN}\u2714${NC} Loaded winlogbeat-$version powershell ingest pipeline\n"
-                    if ! curl --fail -u "elastic:$es_pass" -X PUT -k "https://localhost:9200/_ingest/pipeline/winlogbeat-$version-powershell_operational" -H 'Content-Type: application/json' --data-binary "@$POWERSHELL_OPERATIONAL_PIPELINE" > /dev/null; then
+                    if ! printf -- '-u "%s"' "elastic:$es_pass" | curl --fail -X PUT -k -K- "https://localhost:9200/_ingest/pipeline/winlogbeat-$version-powershell_operational" -H 'Content-Type: application/json' --data-binary "@$POWERSHELL_OPERATIONAL_PIPELINE" > /dev/null; then
                         fail "Couldn't load winlogbeat-$version powershell_operational ingest pipeline"
                     else 
                         printf "  ${GREEN}\u2714${NC} Loaded winlogbeat-$version powershell_operational ingest pipeline\n"
@@ -672,7 +680,7 @@ configure_ingest_account () {
     ingest_account_exists=false
 
     # Don't configure the ingest account if it already exists
-    if curl --fail -s -u "elastic:$es_pass" -X GET -k "https://localhost:9200/_security/user/sysmon-ingest" | grep -q "\"username\":\"sysmon-ingest\""; then
+    if printf -- '-u "%s"' "elastic:$es_pass" | curl --fail -s -X GET -k -K- "https://localhost:9200/_security/user/sysmon-ingest" | grep -q "\"username\":\"sysmon-ingest\""; then
         ingest_account_exists=true
     fi
 
@@ -697,7 +705,7 @@ configure_ingest_account () {
         done
     fi
 
-    if ! curl --fail -s -u "elastic:$es_pass" -X POST -k "https://localhost:9200/_security/role/sysmon-ingest" -H 'Content-Type: application/json' -d'
+    if ! printf -- '-u "%s"' "elastic:$es_pass" | curl --fail -s -X POST -k -K- "https://localhost:9200/_security/role/sysmon-ingest" -H 'Content-Type: application/json' -d'
     {
         "run_as": [],
         "cluster": [ "monitor", "read_ilm", "read_pipeline" ],
@@ -717,7 +725,7 @@ configure_ingest_account () {
     fi
 
     if ! $ingest_account_exists ; then
-        if ! curl --fail -s -u "elastic:$es_pass" -X POST -k "https://localhost:9200/_security/user/sysmon-ingest" -H 'Content-Type: application/json' -d"
+        if ! printf -- '-u "%s"' "elastic:$es_pass" | curl --fail -s -X POST -k -K- "https://localhost:9200/_security/user/sysmon-ingest" -H 'Content-Type: application/json' -d"
         {
             \"password\" : \"$ingest_password\",
             \"roles\" : [ \"sysmon-ingest\" ]

@@ -29,12 +29,19 @@ the script will ask for the password at runtime. In order to avoid recording the
 password, consider editing this file. Change the line `[string]$ESPassword="",` to
 `[string]$ESPassword="YOUR_ELASTIC_PASSWORD_HERE",.
 
+.PARAMETER BeatsVersion
+The version of Winlogbeat to install. This will override any logic that handles upgrading to an
+intermediate version of Winlogbeat before upgrading to a higher major version.
+
 .EXAMPLE
 # Asks for Elasticsearch authentication details at runtime
 .\install-sysmon-beats.ps1 my-es-host.com 9200
 
 # Reads Elasticsearch authentication details from the command line aguments
 .\install-sysmon-beats.ps1 my-es-host.com 9200 elastic elastic_password
+
+# Overrides the version of Winlogbeat to install
+.\install-sysmon-beats.ps1 my-es-host.com 9200 elastic elastic_password 8.6.2
 
 .NOTES
 The Elasticsearch credentials are stored locally using Elastic Winlogbeat's secure
@@ -52,6 +59,29 @@ param (
 )
 
 $ELK_STACK_VERSION = "8.7.0"
+
+if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {  
+    # Use param values instead of $args because $args doesn't appear to get populated if param values are specified
+    # Also set the ExecutionPolicy to Bypass otherwise this will likely fail as script
+    # execution is disabled by default.
+    $arguments = "-ExecutionPolicy", "Bypass", "-File", $myinvocation.mycommand.definition, $ESHost, $ESPort
+    if ($ESUsername) {
+        # Only add this argument if the user provided it, otherwise it will be blank and will cause an error
+        $arguments += $ESUsername
+    }
+    if ($ESPassword) {
+        # Only add this argument if the user provided it, otherwise it will be blank and will cause an error
+        $arguments += $ESPassword
+    }
+    if ($BeatsVersion) {
+        # Only add this argument if the user provided it, otherwise it will be blank and will cause an error
+        $arguments += $BeatsVersion
+    }
+
+    Start-Process -FilePath powershell -Verb runAs -ArgumentList $arguments
+    Break
+}
+
 
 [bool] $OverrideBeatsVersion = $false
 if ([string]::IsNullOrWhiteSpace("$BeatsVersion")) {
@@ -74,25 +104,6 @@ if (Test-Path "$Env:programfiles\Winlogbeat-Espy" -PathType Container) {
     if (($installAnyway -eq 'n') -or ($installAnyway -eq 'N')) {
         Exit
     }
-}
-
-
-if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {  
-    # Use param values instead of $args because $args doesn't appear to get populated if param values are specified
-    # Also set the ExecutionPolicy to Bypass otherwise this will likely fail as script
-    # execution is disabled by default.
-    $arguments = "-ExecutionPolicy", "Bypass", "-File", $myinvocation.mycommand.definition, $ESHost, $ESPort
-    if ($ESUsername) {
-        # Only add this argument if the user provided it, otherwise it will be blank and will cause an error
-        $arguments += $ESUsername
-    }
-    if ($ESPassword) {
-        # Only add this argument if the user provided it, otherwise it will be blank and will cause an error
-        $arguments += $ESPassword
-    }
-
-    Start-Process -FilePath powershell -Verb runAs -ArgumentList $arguments
-    Break
 }
 
 if (-not (Test-Path "$Env:programfiles\Sysmon" -PathType Container)) {

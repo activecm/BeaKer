@@ -36,7 +36,12 @@ services:
       - ${BEAKER_CONFIG_DIR:-/etc/BeaKer/}certificates:/usr/share/kibana/config/certificates
     depends_on:
       - elasticsearch
-
+  check_kibana:
+    image: activecm-beaker/check_kibana:latest
+    build: ./check_kibana
+    restart: "no"
+    depends_on:
+      - kibana
   es-dump:
     image: taskrabbit/elasticsearch-dump:v6.28.0
     restart: "no"

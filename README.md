@@ -33,15 +33,15 @@ After Sysmon starts sending data to ElasticSearch, Kibana will be ready to go. F
 * Operating System: Windows x86-64 bit OS
 * Powershell Version: 3+
 * Installed WinLogBeats version must be <= the Elasticsearch version installed on the BeaKer server, but at least the minimum supported wire version for the Elasticsearch version
-  * E.g. Elasticsearch v8.6.2 supports WinLogBeats 7.17.0 through 8.6.2 
+  * Elasticsearch v8.6.2 supports WinLogBeats 7.17.0 through 8.6.2 
+  * Elasticsearch v7.17.9 supports WinLogBeats 6.8.0 through 7.17.9
 
 ### Automated Install: BeaKer Server
 
 Download the [latest release](https://github.com/activecm/BeaKer/releases/latest) tar file, extract it, and inside the `BeaKer` directory,
 run `./install_beaker.sh` on the Linux machine that will aggregate your Sysmon data and host Kibana.
 
-** Note that existing BeaKer installations must be upgraded to v7.17 before they can be upgraded to v8.x. The automated installer 
-
+** Note that existing BeaKer installations must be upgraded to v7.17 before they can be upgraded to v8.x.
 The automated installer will:
   - Install Docker and Docker-Compose
   - Create a configuration directory in `/etc/BeaKer`
