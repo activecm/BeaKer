@@ -7,4 +7,6 @@ RUN mkdir /usr/share/elasticsearch/snapshots
 # Make sure that the elasticsearch user has permission to read/save snapshots
 # (this matches the ownership of many other folders within the container)
 RUN chown elasticsearch:root /usr/share/elasticsearch/snapshots
+# Ensure write permissions for the snapshots directory
+RUN chmod -R 775 /usr/share/elasticsearch/snapshots
 

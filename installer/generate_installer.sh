@@ -103,7 +103,7 @@ if [ ! "$NO_BUILD" ]; then
     $SUDO docker-compose pull $DOCKER_PULL_SERVICES
     for version in "${elk_versions[@]}"; do
       v=$(echo $version|tr -d '\n')
-      #export ELK_STACK_VERSION="$v"
+      export ELK_STACK_VERSION="$v"
       $SUDO -E docker-compose build --build-arg ELK_STACK_VERSION="$v" --pull $NO_CACHE $DOCKER_BUILD_SERVICES
     done
   fi

@@ -289,6 +289,12 @@ require_kibana_available() {
 
 create_snapshot() {
     local es_pass="$1"
+
+    # Make sure the existing BeaKer install is running before attempting to create a snapshot
+    if [ `$SUDO docker ps | grep 'beaker_elasticsearch' | wc -l` -eq 0 ]; then
+        echo "BeaKer doesn't appear to be running, starting..."
+        ./beaker up -d
+    fi
     require_elasticsearch_api_up "$es_pass"
     local repository_ok=true
 
@@ -782,6 +788,26 @@ main () {
     configure_ingest_account
 
     status "Congratulations, BeaKer is installed"
+
+    if [ "$INSTALL_ELASTIC_VERSION" -eq "7.17.9" ]; then
+        echo ""
+        printf "${GREEN}----- BeaKer Post-Upgrade Tasks -----${NC}\n"
+        echo "This upgrade to Elastic v7.17.9 is intended to be an intermediary upgrade before upgrading to Elastic v8.7.0."
+        echo "Upgrading to Elastic v8.7.0 is optional."
+        echo "The following tasks should be completed before upgrading to Elastic v8.7.0:"
+        echo "1. Upgrade all Windows agents to Winlogbeat v7.17.9 by running $(tput bold)install-sysmon-beats.ps1$(tput sgr0) on each machine."
+        echo "  > After upgrading Elastic to v8.7.0, any Windows agents running Winlogbeat versions lower than 7.17.0 will not be able to send data to BeaKer."
+        echo ""
+        echo "To upgrade to Elastic v8.7.0, run $(tput bold)/opt/BeaKer/install_beaker.sh$(tput sgr0)"
+    else
+        echo ""
+        printf "${GREEN}----- BeaKer Post-Upgrade Tasks -----${NC}\n"
+        echo "Ensure that all Windows agents are running a compatible version of Winlogbeat. Not every Elasticsearch upgrade requires upgrading Winlogbeat on Windows agents."
+        echo "Generally, lower versions of Winlogbeat are compatible with the currently installed Elastic version so as long as they share the same major version."
+        echo "To verify whether or not an upgrade of Winlogbeat is required, check compatibility at https://www.elastic.co/support/matrix#matrix_compatibility"
+        echo "To upgrade Winlogbeat, run $(tput bold)install-sysmon-beats.ps1$(tput sgr0) on each Windows agent."
+    fi
+
 }
 
 main "$@"
