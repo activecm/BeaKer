@@ -789,7 +789,7 @@ main () {
 
     status "Congratulations, BeaKer is installed"
 
-    if [ "$INSTALL_ELASTIC_VERSION" -eq "7.17.9" ]; then
+    if [[ "$INSTALL_ELASTIC_VERSION" == "7.17.9" ]]; then
         echo ""
         printf "${GREEN}----- BeaKer Post-Upgrade Tasks -----${NC}\n"
         echo "This upgrade to Elastic v7.17.9 is intended to be an intermediary upgrade before upgrading to Elastic v8.7.0."
