@@ -1,0 +1,401 @@
+{
+  "description": "Pipeline for Windows Powershell events",
+  "processors": [
+    {
+      "kv": {
+        "field": "winlog.event_data.param2",
+        "target_field": "winlog.event_data",
+        "field_split": "\n\t",
+        "trim_key": "\n\t",
+        "trim_value": "\n\t",
+        "value_split": "=",
+        "if": "ctx?.winlog?.event_id == \"800\"",
+        "description": "Split Event 800 event data fields."
+      }
+    },
+    {
+      "kv": {
+        "value_split": "=",
+        "if": "ctx?.winlog?.event_id != \"800\"",
+        "description": "Split Events 4xx and 600 event data fields.",
+        "field": "winlog.event_data.param3",
+        "target_field": "winlog.event_data",
+        "field_split": "\n\t",
+        "trim_key": "\n\t",
+        "trim_value": "\n\t"
+      }
+    },
+    {
+      "set": {
+        "field": "ecs.version",
+        "value": "1.12.0"
+      }
+    },
+    {
+      "set": {
+        "copy_from": "winlog.level",
+        "ignore_empty_value": true,
+        "ignore_failure": true,
+        "if": "ctx?.winlog?.level != \"\"",
+        "field": "log.level"
+      }
+    },
+    {
+      "date": {
+        "if": "ctx?.winlog?.time_created != null",
+        "field": "winlog.time_created",
+        "formats": [
+          "ISO8601"
+        ],
+        "ignore_failure": true
+      }
+    },
+    {
+      "set": {
+        "field": "event.module",
+        "value": "powershell"
+      }
+    },
+    {
+      "set": {
+        "value": "event",
+        "field": "event.kind"
+      }
+    },
+    {
+      "set": {
+        "value": "{{winlog.event_id}}",
+        "field": "event.code"
+      }
+    },
+    {
+      "set": {
+        "value": "process",
+        "field": "event.category"
+      }
+    },
+    {
+      "set": {
+        "if": "ctx?.event.code == \"400\"",
+        "field": "event.type",
+        "value": "start"
+      }
+    },
+    {
+      "set": {
+        "field": "event.type",
+        "value": "end",
+        "if": "ctx?.event.code == \"403\""
+      }
+    },
+    {
+      "set": {
+        "field": "event.type",
+        "value": "info",
+        "if": "ctx?.event?.type == null"
+      }
+    },
+    {
+      "convert": {
+        "field": "winlog.event_data.SequenceNumber",
+        "target_field": "event.sequence",
+        "type": "long",
+        "ignore_failure": true,
+        "ignore_missing": true
+      }
+    },
+    {
+      "convert": {
+        "field": "winlog.record_id",
+        "type": "string",
+        "ignore_failure": true,
+        "ignore_missing": true
+      }
+    },
+    {
+      "rename": {
+        "if": "ctx?.winlog?.event_data?.HostId != \"\"",
+        "field": "winlog.event_data.HostId",
+        "target_field": "process.entity_id",
+        "ignore_failure": true,
+        "ignore_missing": true
+      }
+    },
+    {
+      "rename": {
+        "field": "winlog.event_data.HostApplication",
+        "target_field": "process.command_line",
+        "ignore_failure": true,
+        "ignore_missing": true,
+        "if": "ctx?.winlog?.event_data?.HostApplication != \"\""
+      }
+    },
+    {
+      "rename": {
+        "field": "winlog.event_data.HostName",
+        "target_field": "process.title",
+        "ignore_failure": true,
+        "ignore_missing": true,
+        "if": "ctx?.winlog?.event_data?.HostName != \"\""
+      }
+    },
+    {
+      "split": {
+        "field": "winlog.event_data.UserId",
+        "target_field": "_temp.user_parts",
+        "separator": "\\\\",
+        "if": "ctx?.winlog?.event_data?.UserId != null"
+      }
+    },
+    {
+      "set": {
+        "ignore_empty_value": true,
+        "if": "ctx?._temp?.user_parts != null && ctx._temp.user_parts.size() == 2",
+        "field": "user.domain",
+        "value": "{{_temp.user_parts.0}}",
+        "ignore_failure": true
+      }
+    },
+    {
+      "set": {
+        "ignore_failure": true,
+        "ignore_empty_value": true,
+        "if": "ctx?._temp?.user_parts != null && ctx._temp.user_parts.size() == 2",
+        "field": "user.name",
+        "value": "{{_temp.user_parts.1}}"
+      }
+    },
+    {
+      "append": {
+        "field": "related.user",
+        "value": "{{user.name}}",
+        "ignore_failure": true,
+        "allow_duplicates": false,
+        "if": "ctx?.user?.name != null"
+      }
+    },
+    {
+      "rename": {
+        "ignore_failure": true,
+        "ignore_missing": true,
+        "if": "ctx?.winlog?.event_data?.NewEngineState != \"\"",
+        "field": "winlog.event_data.NewEngineState",
+        "target_field": "powershell.engine.new_state"
+      }
+    },
+    {
+      "rename": {
+        "target_field": "powershell.engine.previous_state",
+        "ignore_failure": true,
+        "ignore_missing": true,
+        "if": "ctx?.winlog?.event_data?.PreviousEngineState != \"\"",
+        "field": "winlog.event_data.PreviousEngineState"
+      }
+    },
+    {
+      "rename": {
+        "if": "ctx?.winlog?.event_data?.NewProviderState != \"\"",
+        "field": "winlog.event_data.NewProviderState",
+        "target_field": "powershell.provider.new_state",
+        "ignore_failure": true,
+        "ignore_missing": true
+      }
+    },
+    {
+      "rename": {
+        "field": "winlog.event_data.ProviderName",
+        "target_field": "powershell.provider.name",
+        "ignore_failure": true,
+        "ignore_missing": true,
+        "if": "ctx?.winlog?.event_data?.ProviderName != \"\""
+      }
+    },
+    {
+      "convert": {
+        "ignore_missing": true,
+        "if": "ctx?.winlog?.event_data?.DetailTotal != \"\"",
+        "field": "winlog.event_data.DetailTotal",
+        "target_field": "powershell.total",
+        "type": "long",
+        "ignore_failure": true
+      }
+    },
+    {
+      "convert": {
+        "field": "winlog.event_data.DetailSequence",
+        "target_field": "powershell.sequence",
+        "type": "long",
+        "ignore_failure": true,
+        "ignore_missing": true,
+        "if": "ctx?.winlog?.event_data?.DetailSequence != \"\""
+      }
+    },
+    {
+      "rename": {
+        "if": "ctx?.winlog?.event_data?.EngineVersion != \"\"",
+        "field": "winlog.event_data.EngineVersion",
+        "target_field": "powershell.engine.version",
+        "ignore_missing": true,
+        "ignore_failure": true
+      }
+    },
+    {
+      "rename": {
+        "ignore_missing": true,
+        "ignore_failure": true,
+        "if": "ctx?.winlog?.event_data?.PipelineId != \"\"",
+        "field": "winlog.event_data.PipelineId",
+        "target_field": "powershell.pipeline_id"
+      }
+    },
+    {
+      "rename": {
+        "field": "winlog.event_data.RunspaceId",
+        "target_field": "powershell.runspace_id",
+        "ignore_missing": true,
+        "ignore_failure": true,
+        "if": "ctx?.winlog?.event_data?.RunspaceId != \"\""
+      }
+    },
+    {
+      "rename": {
+        "field": "winlog.event_data.HostVersion",
+        "target_field": "powershell.process.executable_version",
+        "ignore_missing": true,
+        "ignore_failure": true,
+        "if": "ctx?.winlog?.event_data?.HostVersion != \"\""
+      }
+    },
+    {
+      "rename": {
+        "ignore_failure": true,
+        "ignore_missing": true,
+        "if": "ctx?.winlog?.event_data?.CommandLine != \"\"",
+        "field": "winlog.event_data.CommandLine",
+        "target_field": "powershell.command.value"
+      }
+    },
+    {
+      "rename": {
+        "target_field": "powershell.command.path",
+        "ignore_failure": true,
+        "ignore_missing": true,
+        "if": "ctx?.winlog?.event_data?.CommandPath != \"\"",
+        "field": "winlog.event_data.CommandPath"
+      }
+    },
+    {
+      "rename": {
+        "field": "winlog.event_data.CommandName",
+        "target_field": "powershell.command.name",
+        "ignore_failure": true,
+        "ignore_missing": true,
+        "if": "ctx?.winlog?.event_data?.CommandName != \"\""
+      }
+    },
+    {
+      "rename": {
+        "ignore_missing": true,
+        "if": "ctx?.winlog?.event_data?.CommandType != \"\"",
+        "field": "winlog.event_data.CommandType",
+        "target_field": "powershell.command.type",
+        "ignore_failure": true
+      }
+    },
+    {
+      "split": {
+        "description": "Split Event 800 command invocation details.",
+        "field": "winlog.event_data.param3",
+        "separator": "\n",
+        "ignore_failure": true,
+        "ignore_missing": true,
+        "if": "ctx.event.code == \"800\""
+      }
+    },
+    {
+      "script": {
+        "lang": "painless",
+        "if": "ctx.event.code == \"800\"",
+        "params": {
+          "field": "param3"
+        },
+        "source": "def parseRawDetail(String raw) {\n    Pattern detailRegex = /^([^:(]+)\\((.+)\\)\\:\\s*(.+)?$/;\n    Pattern parameterBindingRegex = /name\\=(.+);\\s*value\\=(.+)$/;\n\n    def matcher = detailRegex.matcher(raw);\n    if (!matcher.matches()) {\n        return [\"value\": raw];\n    }\n    def matches = new ArrayList();\n    for (def i = 0; i <= matcher.groupCount(); i++) {\n        matches.add(matcher.group(i));\n    }\n    \n    if (matches.length != 4) {\n        return [\"value\": raw];\n    }                \n    \n    if (matches[1] != \"ParameterBinding\") {\n        return [\n            \"type\": matches[1], \n            \"related_command\": matches[2], \n            \"value\": matches[3]\n        ];\n    }\n\n    matcher = parameterBindingRegex.matcher(matches[3]);\n    if (!matcher.matches()) {\n        return [\"value\": matches[4]];\n    }\n    def nameValMatches = new ArrayList();\n    for (def i = 0; i <= matcher.groupCount(); i++) {\n        nameValMatches.add(matcher.group(i));\n    }\n    if (nameValMatches.length !== 3) {\n        return [\"value\": matches[3]];\n    }\n\n    return [\n        \"type\": matches[1],\n        \"related_command\": matches[2],\n        \"name\": nameValMatches[1],\n        \"value\": nameValMatches[2]\n    ];\n}\n\nif (ctx?._temp == null) {\n    ctx._temp = new HashMap();\n}\n\nif (ctx._temp.details == null) {\n    ctx._temp.details = new ArrayList();\n}\n\ndef values = ctx?.winlog?.event_data[params[\"field\"]];\nif (values != null && values.length > 0) {\n    for (v in values) {\n        ctx._temp.details.add(parseRawDetail(v));\n    }\n}",
+        "description": "Parses all command invocation detail raw lines, and converts them to an object, based on their type.\n - for unexpectedly formatted ones: {value: \"the raw line as it is\"}\n - for all:\n      * related_command: describes to what command it is related to\n      * value: the value for that detail line\n      * type: the type of the detail line, i.e.: CommandInvocation, ParameterBinding, NonTerminatingError\n - additionally, ParameterBinding adds a `name` field with the parameter name being bound."
+      }
+    },
+    {
+      "rename": {
+        "if": "ctx?._temp?.details != null && ctx?._temp?.details.length > 0",
+        "field": "_temp.details",
+        "target_field": "powershell.command.invocation_details"
+      }
+    },
+    {
+      "script": {
+        "description": "Implements Windows-like SplitCommandLine",
+        "lang": "painless",
+        "if": "ctx?.process?.command_line != null && ctx.process.command_line != \"\"",
+        "source": "// appendBSBytes appends n '\\\\' bytes to b and returns the resulting slice.\ndef appendBSBytes(StringBuilder b, int n) {\n    for (; n > 0; n--) {\n        b.append('\\\\');\n    }\n    return b;\n}\n\n// readNextArg splits command line string cmd into next\n// argument and command line remainder.\ndef readNextArg(String cmd) {\n    def b = new StringBuilder();\n    boolean inquote;\n    int nslash;\n    for (; cmd.length() > 0; cmd = cmd.substring(1)) {\n        def c = cmd.charAt(0);\n        if (c == (char)' ' || c == (char)0x09) {\n            if (!inquote) {\n                return [\n                    \"arg\":  appendBSBytes(b, nslash).toString(),\n                    \"rest\": cmd.substring(1)\n                ];\n            }\n        } else if (c == (char)'\"') {\n            b = appendBSBytes(b, nslash/2);\n            if (nslash%2 == 0) {\n                // use \"Prior to 2008\" rule from\n                // http://daviddeley.com/autohotkey/parameters/parameters.htm\n                // section 5.2 to deal with double double quotes\n                if (inquote && cmd.length() > 1 && cmd.charAt(1) == (char)'\"') {\n                    b.append(c);\n                    cmd = cmd.substring(1);\n                }\n                inquote = !inquote;\n            } else {\n                b.append(c);\n            }\n            nslash = 0;\n            continue;\n        } else if (c == (char)'\\\\') {\n            nslash++;\n            continue;\n        }\n        b = appendBSBytes(b, nslash);\n        nslash = 0;\n        b.append(c);\n    }\n    return [\n        \"arg\":  appendBSBytes(b, nslash).toString(), \n        \"rest\": ''\n    ];\n}\n\n// commandLineToArgv splits a command line into individual argument\n// strings, following the Windows conventions documented\n// at http://daviddeley.com/autohotkey/parameters/parameters.htm#WINARGV\n// Original implementation found at: https://github.com/golang/go/commit/39c8d2b7faed06b0e91a1ad7906231f53aab45d1\ndef commandLineToArgv(String cmd) {\n    def args = new ArrayList();\n    while (cmd.length() > 0) {\n        if (cmd.charAt(0) == (char)' ' || cmd.charAt(0) == (char)0x09) {\n            cmd = cmd.substring(1);\n            continue;\n        }\n        def next = readNextArg(cmd);\n        cmd = next.rest;\n        args.add(next.arg);\n    }\n    return args;\n}\n\nctx.process.args = commandLineToArgv(ctx.process.command_line);\nctx.process.args_count = ctx.process.args.length;"
+      }
+    },
+    {
+      "script": {
+        "lang": "painless",
+        "if": "ctx?.winlog?.event_data?.ScriptName != null && ctx.winlog.event_data.ScriptName.length() > 1",
+        "source": "def path = ctx.winlog.event_data.ScriptName;\ndef idx = path.lastIndexOf(\"\\\\\");\nif (idx > -1) {\n    if (ctx?.file == null) {\n        ctx.file = new HashMap();\n    }\n    ctx.file.name = path.substring(idx+1);\n    ctx.file.directory = path.substring(0, idx);\n\n    def extIdx = path.lastIndexOf(\".\");\n    if (extIdx > -1) {\n        ctx.file.extension = path.substring(extIdx+1);\n    }\n}",
+        "description": "Adds file information."
+      }
+    },
+    {
+      "rename": {
+        "ignore_missing": true,
+        "if": "ctx?.winlog?.event_data?.ScriptName != \"\"",
+        "field": "winlog.event_data.ScriptName",
+        "target_field": "file.path",
+        "ignore_failure": true
+      }
+    },
+    {
+      "remove": {
+        "ignore_failure": true,
+        "field": [
+          "_temp",
+          "winlog.event_data.param1",
+          "winlog.event_data.param2",
+          "winlog.event_data.param3",
+          "winlog.event_data.SequenceNumber",
+          "winlog.event_data.DetailTotal",
+          "winlog.event_data.DetailSequence",
+          "winlog.event_data.UserId",
+          "winlog.time_created",
+          "winlog.level"
+        ],
+        "ignore_missing": true
+      }
+    },
+    {
+      "script": {
+        "lang": "painless",
+        "source": "ctx?.winlog?.event_data?.entrySet().removeIf(entry -> entry.getValue() == null || entry.getValue().equals(\"\"));",
+        "description": "Remove all empty values from event_data."
+      }
+    },
+    {
+      "remove": {
+        "ignore_missing": true,
+        "ignore_failure": true,
+        "if": "ctx?.winlog?.event_data != null && ctx.winlog.event_data.size() == 0",
+        "description": "Remove empty event data.",
+        "field": "winlog.event_data"
+      }
+    }
+  ],
+  "on_failure": [
+    {
+      "set": {
+        "value": "{{ _ingest.on_failure_message }}",
+        "field": "error.message"
+      }
+    }
+  ]
+}

@@ -1,6 +1,22 @@
 # Installation and Release Generation
 
 ## Generating a Release on Github
+
+### Updating ELK Components
+1. Update `ELK_VERSION` with the ELK stack version(s) to include in the release, one per line. They must be in ascending order.
+2. Update `ELK_STACK_VERSION` in `./agent/install-sysmon-beats.ps1`.
+3. For each included ELK version, install WinLogBeat and export the index template and ingest pipelines for each version.
+  - Run `.\winlogbeat.exe --path.data C:\ProgramData\winlogbeat export pipelines --es.version=7.16.0` 
+    - Refer to the [WinLogBeat Documentation](https://www.elastic.co/guide/en/beats/winlogbeat/current/load-ingest-pipelines.html) for which `--es.version` to pass into this command.
+  - Run `.\winlogbeat.exe export template --es.version [winlogbeat-version] | Out-File -Encoding UTF8 winlogbeat-[winlogbeat-version].template.json`
+  - Put each template & ingest pipeline in `./installer/stage/BeaKer/elasticsearch/templates`.
+  - Delete templates and pipelines from older ELK versions that are no longer included in the release.
+  - Edit each index template to:
+    - Include `"winlogbeat-[winlogbeat-version]"` within the `index_patterns` array (if it doesn't already)
+    - Include a top-level `data_stream` key
+    - Include `"aliases":{ "winlogbeat": {} }` within the `template` object
+    - Include `"lifecycle":{ "name": "beaker" }` within the `template.settings.index` object
+
 ### One-Time Release
 
 1. Create a new [GitHub release](https://github.com/activecm/BeaKer/releases)

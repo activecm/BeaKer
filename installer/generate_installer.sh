@@ -2,21 +2,29 @@
 
 set -e
 
-# These services are always built unless --no-build is passed in
-DOCKER_BUILD_SERVICES="elasticsearch kibana"
-# These services are always pulled unless --no-pull is passsed in
-DOCKER_PULL_SERVICES="es-dump"
-# These images are exported in the deployment after running pulls/builds
-DOCKER_EXPORT_IMAGES=$(cat <<'HEREDOC'
-    activecm-beaker/elasticsearch:latest
-    activecm-beaker/kibana:latest
-    taskrabbit/elasticsearch-dump:v6.28.0
-HEREDOC
-)
-
 # Store the absolute path of the script's dir and switch to the top dir
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 pushd "$SCRIPT_DIR/../" > /dev/null
+
+# Read in the versions that will be distributed with this release
+readarray elk_versions < ./ELK_VERSIONS
+# These images are exported in the deployment after running pulls/builds
+DOCKER_EXPORT_IMAGES="taskrabbit/elasticsearch-dump:v6.28.0\n"
+DOCKER_EXPORT_IMAGES="${DOCKER_EXPORT_IMAGES}activecm-beaker/check_kibana:latest\n"
+
+# Create elasticsearch & kibana images for each version defined in ELK_VERSIONS
+for version in "${elk_versions[@]}"; do
+  DOCKER_EXPORT_IMAGES="${DOCKER_EXPORT_IMAGES}activecm-beaker/elasticsearch:$version"
+  DOCKER_EXPORT_IMAGES="${DOCKER_EXPORT_IMAGES}activecm-beaker/kibana:$version"
+done 
+DOCKER_EXPORT_IMAGES=$(echo -e "$DOCKER_EXPORT_IMAGES")
+echo "###### EXPORTING THE FOLLOWING IMAGES: ######"
+echo "$DOCKER_EXPORT_IMAGES"
+
+# These services are always built unless --no-build is passed in
+DOCKER_BUILD_SERVICES="elasticsearch kibana check_kibana"
+# These services are always pulled unless --no-pull is passsed in
+DOCKER_PULL_SERVICES="es-dump"
 
 __help() {
   cat <<HEREDOC
@@ -93,7 +101,11 @@ if [ ! "$NO_BUILD" ]; then
     # Ensure we have the latest images
     echo "The latest images will be pulled from DockerHub for this build."
     $SUDO docker-compose pull $DOCKER_PULL_SERVICES
-    $SUDO docker-compose build --pull $NO_CACHE $DOCKER_BUILD_SERVICES
+    for version in "${elk_versions[@]}"; do
+      v=$(echo $version|tr -d '\n')
+      export ELK_STACK_VERSION="$v"
+      $SUDO -E docker-compose build --build-arg ELK_STACK_VERSION="$v" --pull $NO_CACHE $DOCKER_BUILD_SERVICES
+    done
   fi
 fi
 
