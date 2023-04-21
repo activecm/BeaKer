@@ -273,7 +273,7 @@ require_kibana_available() {
     local connection_attempts=0
     local kibana_available="false"
     while [ $connection_attempts -lt $attempts -a "$kibana_available" != "true" ]; do
-        if printf -- '-u "%s"' "elastic:$es_pass" | curl --fail -s -XGET -k -K- "https://localhost:5601/api/status" | ./beaker run --rm check_kibana ; then
+        if printf -- '-u "%s"' "elastic:$es_pass" | curl --fail -s -XGET -k -K- "https://localhost:5601/api/status" | ./beaker run --rm -T check_kibana ; then
             echo2 "Kibana is up and running."
             kibana_available="true"
             break
