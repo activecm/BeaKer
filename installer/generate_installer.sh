@@ -89,8 +89,10 @@ export COMPOSE_FILE="docker-compose.yml"
 
 # If the current user doesn't have docker permissions run with sudo
 SUDO=
+SUDO_E=
 if [ ! -w "/var/run/docker.sock" ]; then
 	SUDO="sudo"
+  SUDO_E='sudo -E'
 fi
 
 if [ ! "$NO_BUILD" ]; then
@@ -104,7 +106,7 @@ if [ ! "$NO_BUILD" ]; then
     for version in "${elk_versions[@]}"; do
       v=$(echo $version|tr -d '\n')
       export ELK_STACK_VERSION="$v"
-      $SUDO -E docker-compose build --build-arg ELK_STACK_VERSION="$v" --pull $NO_CACHE $DOCKER_BUILD_SERVICES
+      $SUDO_E docker-compose build --build-arg ELK_STACK_VERSION="$v" --pull $NO_CACHE $DOCKER_BUILD_SERVICES
     done
   fi
 fi
