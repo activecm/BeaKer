@@ -75,22 +75,24 @@ STAGE_DIR="$SCRIPT_DIR/stage/$BEAKER_ARCHIVE"
 
 # Make sure we can use docker-compose
 shell-lib/docker/check_docker.sh || {
-	echo -e "\e[93mWARNING\e[0m: The generator did not detect a supported version of Docker."
-	echo "         A supported version of Docker can be installed by running"
-	echo "         the install_docker.sh script in the scripts directory."
+  echo -e "\e[93mWARNING\e[0m: The generator did not detect a supported version of Docker."
+  echo "         A supported version of Docker can be installed by running"
+  echo "         the install_docker.sh script in the scripts directory."
 }
 shell-lib/docker/check_docker-compose.sh || {
-	echo -e "\e[93mWARNING\e[0m: The generator did not detect a supported version of Docker-Compose."
-	echo "         A supported version of Docker-Compose can be installed by running"
-	echo "         the install_docker.sh script in the scripts directory."
+  echo -e "\e[93mWARNING\e[0m: The generator did not detect a supported version of Docker-Compose."
+  echo "         A supported version of Docker-Compose can be installed by running"
+  echo "         the install_docker.sh script in the scripts directory."
 }
 
 export COMPOSE_FILE="docker-compose.yml"
 
 # If the current user doesn't have docker permissions run with sudo
 SUDO=
+SUDO_E=
 if [ ! -w "/var/run/docker.sock" ]; then
-	SUDO="sudo"
+  SUDO="sudo"
+  SUDO_E='sudo -E'
 fi
 
 if [ ! "$NO_BUILD" ]; then
@@ -104,7 +106,7 @@ if [ ! "$NO_BUILD" ]; then
     for version in "${elk_versions[@]}"; do
       v=$(echo $version|tr -d '\n')
       export ELK_STACK_VERSION="$v"
-      $SUDO -E docker-compose build --build-arg ELK_STACK_VERSION="$v" --pull $NO_CACHE $DOCKER_BUILD_SERVICES
+      $SUDO_E docker-compose build --build-arg ELK_STACK_VERSION="$v" --pull $NO_CACHE $DOCKER_BUILD_SERVICES
     done
   fi
 fi
