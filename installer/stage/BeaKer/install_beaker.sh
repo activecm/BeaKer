@@ -53,7 +53,7 @@ test_system () {
 
 install_docker () {
     status "Installing Docker"
-    $SUDO shell-lib/docker/install_docker.sh
+    shell-lib/docker/install_docker.sh
     echo2 ''
     if $SUDO docker ps &>/dev/null ; then
 		echo2 'Docker appears to be working, continuing.'
