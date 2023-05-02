@@ -180,6 +180,7 @@ ensure_snapshot_repo_exists() {
     if [ ! -d "/opt/BeaKer/snapshots" ]; then 
         $SUDO mkdir "/opt/BeaKer/snapshots"
     fi
+    $SUDO chmod 777 /opt/BeaKer/snapshots
 }
 
 require_aih_web_server_listening () {
