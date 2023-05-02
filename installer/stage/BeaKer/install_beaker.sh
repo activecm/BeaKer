@@ -180,6 +180,7 @@ ensure_snapshot_repo_exists() {
     if [ ! -d "/opt/BeaKer/snapshots" ]; then 
         $SUDO mkdir "/opt/BeaKer/snapshots"
     fi
+    $SUDO chmod 777 /opt/BeaKer/snapshots
 }
 
 require_aih_web_server_listening () {
@@ -291,7 +292,7 @@ create_snapshot() {
     local es_pass="$1"
 
     # Make sure the existing BeaKer install is running before attempting to create a snapshot
-    if [ `$SUDO docker ps | grep 'beaker_elasticsearch' | wc -l` -eq 0 ]; then
+    if [ `$SUDO docker ps | grep 'beaker-elasticsearch' | wc -l` -eq 0 ]; then
         echo "BeaKer doesn't appear to be running, starting..."
         ./beaker up -d
     fi

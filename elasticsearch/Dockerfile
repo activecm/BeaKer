@@ -5,8 +5,7 @@ ADD ./elasticsearch.yml /usr/share/elasticsearch/config/elasticsearch.yml
 RUN mkdir /usr/share/elasticsearch/snapshots
 # The elasticsearch container runs under the elasticsearch user
 # Make sure that the elasticsearch user has permission to read/save snapshots
-# (this matches the ownership of many other folders within the container)
-RUN chown elasticsearch:root /usr/share/elasticsearch/snapshots
-# Ensure write permissions for the snapshots directory
-RUN chmod -R 775 /usr/share/elasticsearch/snapshots
+# Since this directory is a bind mount, give all users read/write permissions
+# in order to avoid flaky write permissions when creating snapshots
+RUN chmod -R 777 /usr/share/elasticsearch/snapshots
 
