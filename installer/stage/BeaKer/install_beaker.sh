@@ -178,7 +178,7 @@ EOF
 ensure_snapshot_repo_exists() {
     # Create snapshot folder if it doesn't exist
     if [ ! -d "/var/BeaKer/snapshots" ]; then 
-        $SUDO mkdir "/var/BeaKer/snapshots"
+        $SUDO mkdir -p "/var/BeaKer/snapshots"
     fi
     $SUDO chmod 777 /var/BeaKer/snapshots
 }
