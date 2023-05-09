@@ -177,10 +177,10 @@ EOF
 
 ensure_snapshot_repo_exists() {
     # Create snapshot folder if it doesn't exist
-    if [ ! -d "/opt/BeaKer/snapshots" ]; then 
-        $SUDO mkdir "/opt/BeaKer/snapshots"
+    if [ ! -d "/var/BeaKer/snapshots" ]; then 
+        $SUDO mkdir "/var/BeaKer/snapshots"
     fi
-    $SUDO chmod 777 /opt/BeaKer/snapshots
+    $SUDO chmod 777 /var/BeaKer/snapshots
 }
 
 require_aih_web_server_listening () {

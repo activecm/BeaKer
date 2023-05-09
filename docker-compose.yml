@@ -5,7 +5,7 @@ volumes:
     driver: local
     driver_opts:
       type: 'none'
-      device: /opt/BeaKer/snapshots
+      device: /var/BeaKer/snapshots
       o: bind
 services:
   elasticsearch:
