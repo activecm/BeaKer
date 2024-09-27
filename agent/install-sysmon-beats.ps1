@@ -297,6 +297,10 @@ winlogbeat.event_logs:
   - name: Microsoft-Windows-Sysmon/Operational
     event_id: 3
     processors:
+      - drop_event:
+          when:
+            network:
+              destination.ip: ['0.0.0.0/32', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '127.0.0.0/8', '169.254.0.0/16', '224.0.0.0/4', '255.255.255.255/32', 'fe80::/10']
       - script:
           lang: javascript
           id: sysmon
