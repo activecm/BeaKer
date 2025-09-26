@@ -1,6 +1,4 @@
-#!/usr/bin/env bash
-#Performs installation of BeaKer software
-#version = 1.0.1
+#!/bin/bash
 
 #### Environment Set Up
 
@@ -817,3 +815,9 @@ main "$@"
 # Change back to the initial working directory
 # If the script was launched from the script directory, popd will fail since it moved
 popd &> /dev/null || true
+
+
+# TODO: handle user input
+# TODO: call ansible playbook using user input
+# TODO: report success or failure
+# TODO: print banner (and next steps) ^_^
