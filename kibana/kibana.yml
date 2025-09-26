@@ -1,5 +1,5 @@
 ---
-server.name: "AI-Hunter: Kibana"
+server.name: "BeaKer-Kibana"
 server.host: "0.0.0.0"
 server.ssl.enabled: true
 server.ssl.certificate: /usr/share/kibana/config/certificates/Kibana/Kibana.crt

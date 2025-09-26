@@ -1,5 +1,5 @@
 ---
-  cluster.name: "AI-Hunter-Docker-Single-Node"
+  cluster.name: "BeaKer-ElasticSearch"
   network.host: 0.0.0.0
 
   discovery.type: single-node
