@@ -1,0 +1,38 @@
+{
+    "folders": [
+        {
+            "name": "BeaKer",
+            "path": ".."
+        },
+    ],
+    "extensions": {
+        "recommendations": [
+            "dbaeumer.vscode-eslint",
+            "eamodio.gitlens",
+            "esbenp.prettier-vscode",
+            "github.vscode-github-actions",
+            "jtavin.ldif",
+            "mechatroner.rainbow-csv",
+            "ms-azuretools.vscode-docker",
+            "ms-python.debugpy",
+            "ms-python.python",
+            "ms-python.vscode-pylance",
+            "ms-vscode-remote.remote-containers",
+            "ms-vsliveshare.vslives",
+            "naumovs.color-highlight",
+            "redhat.vscode-yaml",
+            "shd101wyy.markdown-preview-enhanced",
+            "Tanh.hjson-formatter",
+            "tyriar.sort-lines",
+            "wayou.vscode-todo-highlight",
+        ]
+    },
+
+    "settings": {
+        // === YAML ===
+        "[yaml]": {
+            "editor.defaultFormatter": "redhat.vscode-yaml",
+            "editor.formatOnSave": true
+        },
+    }
+}
