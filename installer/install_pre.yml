@@ -1,0 +1,300 @@
+# ansible playbook that does the prep work for installing BeaKer.
+
+- name: "BeaKer Pre: System prep and checks."
+  hosts: "{{ install_hosts }}"
+  become: true
+
+  vars:
+    ansible_python_interpreter: /bin/python3
+
+  pre_tasks:
+    # Make sure OS is supported
+    - name: "BeaKer Pre: Checking Linux distribution."
+      ansible.builtin.fail:
+        msg: "Distribution name: {{ ansible_distribution }} is not supported."
+      when:
+        - ansible_distribution != 'CentOS'
+        - ansible_distribution != 'Rocky'
+        - ansible_distribution != 'Ubuntu'
+        - ansible_distribution != 'RedHat'
+      tags:
+        - linux
+
+    # Make sure CPU architecture is supported
+    - name: "BeaKer Pre: Check system architecture."
+      ansible.builtin.fail:
+        msg: "Unsupported CPU architecture: {{ ansible_architecture }}"
+      when: ( ansible_architecture != "x86_64" )
+
+    - name: "BeaKer Pre: Check for yum-utils before proceeding."
+      command: rpm -qa | grep yum-utils
+      check_mode: true
+      changed_when: false
+      register: package_check
+      when: ( ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Rocky' )
+      tags:
+        - packages
+        - linux
+        - linuxrpm
+
+    - name: "BeaKer Pre: Install yum-utils if not found."
+      package:
+        name: yum-utils
+        state: latest
+      when: ( ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Rocky' ) and '"yum-utils" not in package_check'
+      tags:
+        - packages
+        - linux
+        - linuxrpm
+
+    # Install aptitude, preferred by ansible for package management on Ubuntu
+    - name: "BeaKer Pre: Install aptitude on debian-based system."
+      apt:
+        name: aptitude
+        state: latest
+        update_cache: true
+        cache_valid_time: 3600
+      when: ( ansible_distribution == 'Ubuntu' )
+      tags:
+        - packages
+        - linux
+        - linuxdeb
+
+  tasks:
+    - name: "BeaKer Pre: Patch and install packages on rpm-based servers."
+      block:
+        - name: "BeaKer Pre: Patch all rpm-based servers."
+          yum:
+            name: "*"
+            state: latest
+            skip_broken: yes
+            update_cache: yes
+          tags:
+            - packages
+            - linux
+            - linuxrpm
+
+        - name: "BeaKer Pre: Install rpm packages on rpm-based distributions."
+          yum:
+            name:
+              - nano
+              - nmap-ncat
+              - dnf-plugins-core
+              - wget
+              - lshw
+              - net-tools
+            state: latest
+            update_cache: true
+          tags:
+            - packages
+            - linux
+            - linuxrpm
+      when: ( ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Rocky' )
+
+    - name: "BeaKer Pre: Install pip on Centos/Fedora."
+      yum:
+        name:
+          - python3-pip
+        state: latest
+        update_cache: true
+      tags:
+        - packages
+        - linux
+        - linuxrpm
+      when: ( ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Rocky' )
+
+    - name: "BeaKer Pre: Patch and install packages on debian-based servers."
+      block:
+        - name: "BeaKer Pre: Patch all debian-based servers."
+          apt:
+            name: "*"
+            state: latest
+            update_cache: yes
+            cache_valid_time: 3600
+          tags:
+            - packages
+            - linux
+            - linuxdeb
+
+        - name: "BeaKer Pre: Install apt packages on deb-based distributions."
+          apt:
+            pkg:
+              - nano
+              - apt-transport-https
+              - ca-certificates
+              - curl
+              - python3-pip
+              - python3-setuptools
+              - wget
+              - net-tools
+            state: latest
+            update_cache: true
+            cache_valid_time: 3600
+          tags:
+            - packages
+            - linux
+            - linuxdeb
+      when: ( ansible_distribution == 'Ubuntu' )
+
+    - name: "BeaKer Pre: Add Docker Ubuntu GPG apt key."
+      block:
+        - name: "BeaKer Pre: Download Docker Ubuntu GPG apt key with get_url module."
+          get_url:
+            url: https://download.docker.com/linux/ubuntu/gpg
+            dest: /etc/apt/trusted.gpg.d/docker-ubuntu.asc
+            mode: "0644"
+            force: true
+      rescue:
+        - name: "BeaKer Pre: Download failed with get_url module. Falling back to curl."
+          shell: curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/trusted.gpg.d/docker-ubuntu.asc
+      when: ( ansible_distribution == 'Ubuntu' )
+      tags:
+        - packages
+        - linux
+        - linuxdeb
+
+    - name: "BeaKer Pre: Add Docker Repository to Ubuntu."
+      apt_repository:
+        repo: deb https://download.docker.com/linux/{{ ansible_distribution|lower }} {{ ansible_distribution_release }} stable
+        state: present
+      when: ( ansible_distribution == 'Ubuntu' )
+      tags:
+        - packages
+        - linux
+        - linuxdeb
+
+    - name: "BeaKer Pre: Add Docker Repository to AlmaLinux/Centos/OracleLinux/Rocky distributions."
+      yum_repository:
+        name: docker-ce
+        description: Docker package repository
+        gpgkey: https://download.docker.com/linux/centos/gpg
+        baseurl: https://download.docker.com/linux/centos/$releasever/$basearch/stable/
+        state: present
+        enabled: true
+      when: ( ansible_distribution == 'CentOS' or ansible_distribution == 'Rocky' )
+      tags:
+        - packages
+        - linux
+        - linuxrpm
+
+    - name: "BeaKer Pre: Add Docker Repository to RHEL distribution."
+      yum_repository:
+        name: docker-ce
+        description: Docker package repository
+        gpgkey: https://download.docker.com/linux/rhel/gpg
+        baseurl: https://download.docker.com/linux/rhel/$releasever/$basearch/stable/
+        state: present
+        enabled: true
+      when: ( ansible_distribution == 'RedHat' )
+      tags:
+        - packages
+        - linux
+        - linuxrpm
+
+    #Install docker
+    - name: "BeaKer Pre: Install docker on debian-based distributions."
+      block:
+        - name: "BeaKer Pre: Uninstall unofficial docker packages on debian-based distributions."
+          apt:
+            name:
+              - docker-client
+              - docker-client-latest
+              - docker-common
+              - docker-compose
+              - docker-compose-v2
+              - docker-doc
+              - docker-engine
+              - docker-latest
+              - docker-latest-logrotate
+              - docker-logrotate
+              - docker.io
+              - podman-docker
+            state: absent
+            update_cache: true
+            cache_valid_time: 3600
+          tags:
+            - docker
+            - linux
+            - linuxdeb
+
+        - name: "BeaKer Pre: Install docker-ce on debian-based distributions."
+          apt:
+            name:
+              - docker-ce
+              - docker-ce-cli
+              - docker-compose-plugin
+              - containerd.io
+            state: latest
+            update_cache: true
+            cache_valid_time: 3600
+          tags:
+            - docker
+            - linux
+            - linuxdeb
+
+        - name: "BeaKer Pre: Install docker modules for Python on deb-based distributions."
+          apt:
+            name:
+              - python3-docker
+              - python3-requests
+          tags:
+            - docker
+            - linux
+            - linuxdeb
+      when: ( ansible_distribution == 'Ubuntu' )
+
+    - name: "BeaKer Pre: Install docker on rpm-based distributions."
+      block:
+        - name: "BeaKer Pre: Uninstall unofficial docker packages on rpm-based distributions."
+          yum:
+            name:
+              - docker-client
+              - docker-client-latest
+              - docker-common
+              - docker-compose
+              - docker-compose-v2
+              - docker-doc
+              - docker-engine
+              - docker-latest
+              - docker-latest-logrotate
+              - docker-logrotate
+              - docker.io
+              - docker
+              - podman-docker
+              - podman
+              - runc
+            state: absent
+            update_cache: true
+          tags:
+            - docker
+            - linux
+            - linuxrpm
+
+        - name: "BeaKer Pre: Install docker-ce on rpm-based distributions."
+          yum:
+            name:
+              - docker-ce
+              - docker-ce-cli
+              - docker-buildx-plugin
+              - docker-compose-plugin
+              - containerd.io
+            state: latest
+            update_cache: true
+          tags:
+            - docker
+            - linux
+            - linuxrpm
+      when: ( ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Rocky' )
+
+    - name: "BeaKer Pre: Transfer docker-compose script to target system for backwards compatibility."
+      copy:
+        src: docker-compose
+        dest: /usr/local/bin/docker-compose
+        owner: root
+        group: root
+        mode: 0755
+      tags:
+        - docker
+        - linux
+        - linuxdeb
+        - linuxrpm
