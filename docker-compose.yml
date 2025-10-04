@@ -1,15 +1,21 @@
-version: '3'
 volumes:
   elasticsearch_persistent:
   elasticsearch_snapshots:
     driver: local
     driver_opts:
-      type: 'none'
+      type: "none"
       device: /var/BeaKer/snapshots
       o: bind
+configs:
+  elasticsearch:
+    file: /etc/BeaKer/elasticsearch/elasticsearch.yml
+    external: true
+  kibana:
+    file: /etc/BeaKer/kibana/kibana.yml
+    external: true
 services:
   elasticsearch:
-    image: activecm-beaker/elasticsearch:${ELK_STACK_VERSION:-latest}
+    image: elasticsearch:${ELK_STACK_VERSION:-latest}
     build: ./elasticsearch
     restart: unless-stopped
     environment:
@@ -17,12 +23,15 @@ services:
       - "ES_JAVA_OPTS=-Xms3g -Xmx3g"
     ports:
       - "${ELASTIC_HTTP_PORT:-9200}:9200"
+    configs:
+      - source: elasticsearch
+        target: /usr/share/elasticsearch/config/elasticsearch.yml
     volumes:
       - elasticsearch_persistent:/usr/share/elasticsearch/data
       - ${BEAKER_CONFIG_DIR:-/etc/BeaKer/}certificates:/usr/share/elasticsearch/config/certificates
       - elasticsearch_snapshots:/usr/share/elasticsearch/snapshots
   kibana:
-    image: activecm-beaker/kibana:${ELK_STACK_VERSION:-latest}
+    image: kibana:${ELK_STACK_VERSION:-latest}
     build: ./kibana
     restart: unless-stopped
     environment:
@@ -32,16 +41,19 @@ services:
       - SECURITY_ENCRYPTION_KEY=${SECURITY_ENCRYPTION_KEY}
     ports:
       - "${KIBANA_HTTP_PORT:-5601}:5601"
+    configs:
+      - source: kibana
+        target: /usr/share/kibana/config/kibana.yml
     volumes:
       - ${BEAKER_CONFIG_DIR:-/etc/BeaKer/}certificates:/usr/share/kibana/config/certificates
     depends_on:
       - elasticsearch
-  check_kibana:
-    image: activecm-beaker/check_kibana:latest
-    build: ./check_kibana
-    restart: "no"
-    depends_on:
-      - kibana
+  #  check_kibana:
+  #    image: activecm-beaker/check_kibana:latest
+  #    build: ./check_kibana
+  #    restart: "no"
+  #    depends_on:
+  #      - kibana
   es-dump:
     image: taskrabbit/elasticsearch-dump:v6.28.0
     restart: "no"
@@ -50,4 +62,3 @@ services:
     depends_on:
       - elasticsearch
     entrypoint: ["/bin/true"]
-
