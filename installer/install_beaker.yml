@@ -64,7 +64,7 @@
 
     - name: "BeaKer Install: Transfer BeaKer script to /usr/local/bin."
       copy:
-        src: "/opt/BeaKer/beaker"
+        src: "/opt/BeaKer/beaker.sh"
         dest: /usr/local/bin/beaker
         owner: root
         group: root

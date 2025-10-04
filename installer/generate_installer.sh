@@ -55,7 +55,7 @@ cp ../kibana/kibana.yml "$INSTALL_ETC"/kibana
 # copy over install files to /opt
 mkdir "$INSTALL_OPT"/elasticsearch
 mkdir "$INSTALL_OPT"/kibana
-cp ../beaker "$INSTALL_OPT"
+cp ../beaker.sh "$INSTALL_OPT"
 cp ../docker-compose.yml "$INSTALL_OPT"
 cp ../LICENSE "$INSTALL_OPT"
 cp ../elasticsearch/*.sh "$INSTALL_OPT"/elasticsearch
