@@ -37,6 +37,26 @@
         - linux
         - linuxrpm
 
+    # Make sure system has adequate available storage space
+    - block:
+        - name: "BeaKer Pre: Ensure adequate storage capacity."
+          shell: "df {{ item.dir }} -B1 --output=avail | tail -n +2"
+          register: result
+          loop_control:
+            label: "{{ item.dir }}"
+          failed_when:
+            - result.stdout|int < item.cap
+          loop:
+            - { dir: "{{ lookup('env', 'HOME') }}", cap: 5000000000 }
+            - { dir: "/var", cap: 5000000000 }
+            - { dir: "/etc", cap: 5000000000 }
+            - { dir: "/usr", cap: 5000000000 }
+            - { dir: "/opt", cap: 5000000000 }
+      rescue:
+        - name: "BeaKer Pre: Notify user of insufficient storage capacity."
+          fail:
+            msg: "Insufficient storage space available: {{ result.results | json_query('[?failed==`true`].item.dir') }}"
+
     - name: "BeaKer Pre: Install yum-utils if not found."
       package:
         name: yum-utils
@@ -285,16 +305,15 @@
             - linux
             - linuxrpm
       when: ( ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Rocky' )
-
-    - name: "BeaKer Pre: Transfer docker-compose script to target system for backwards compatibility."
-      copy:
-        src: docker-compose
-        dest: /usr/local/bin/docker-compose
-        owner: root
-        group: root
-        mode: 0755
-      tags:
-        - docker
-        - linux
-        - linuxdeb
-        - linuxrpm
+#    - name: "BeaKer Pre: Transfer docker-compose script to target system for backwards compatibility."
+#      copy:
+#        src: docker-compose
+#        dest: /usr/local/bin/docker-compose
+#        owner: root
+#        group: root
+#        mode: 0755
+#      tags:
+#        - docker
+#        - linux
+#        - linuxdeb
+#        - linuxrpm

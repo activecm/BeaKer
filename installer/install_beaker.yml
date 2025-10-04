@@ -1,0 +1,95 @@
+- name: "BeaKer Install: BeaKer installer."
+  hosts: "{{ install_hosts }}"
+  become: true
+
+  vars:
+    beaker_version: "REPLACE_ME"
+    # TODO: container name variables
+    beaker_container_images:
+      - "taskrabbit/elasticsearch-dump:v6.28.0"
+      # - "activecm-beaker/check_kibana:latest"
+      - "elasticsearch:8.17.10"
+      - "kibana:8.17.10"
+    ansible_python_interpreter: /bin/python3
+
+  # The install_pre.yml script should already have been run by this point
+
+  tasks:
+    #Make directories
+    - name: "BeaKer Install: Create configuration directories."
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: 0755
+      loop:
+        - /etc/BeaKer/
+        - /opt/BeaKer/
+        - /var/BeaKer/
+      tags:
+        - docker
+        - beaker
+        - linux
+        - linuxdeb
+        - linuxrpm
+
+    - name: "BeaKer Install: Transfer configuration files to /etc/BeaKer."
+      copy:
+        src: "./files/etc/"
+        dest: /etc/BeaKer/
+        owner: root
+        group: root
+        mode: 0755
+      tags:
+        - docker
+        - beaker
+        - linux
+        - linuxdeb
+        - linuxrpm
+
+    - name: "BeaKer Install: Transfer installation files to /etc/BeaKer."
+      copy:
+        src: "./files/opt/"
+        dest: /opt/BeaKer/
+        owner: root
+        group: root
+        mode: 0755
+      tags:
+        - docker
+        - beaker
+        - linux
+        - linuxdeb
+        - linuxrpm
+
+    - name: "BeaKer Install: Transfer BeaKer script to /usr/local/bin."
+      copy:
+        src: "/opt/BeaKer/beaker"
+        dest: /usr/local/bin/beaker
+        owner: root
+        group: root
+        mode: 0755
+      tags:
+        - docker
+        - beaker
+        - linux
+        - linuxdeb
+        - linuxrpm
+
+    - name: "BeaKer Install: Pull from GitHub Container Repository."
+
+      community.docker.docker_image:
+        name: "{{ item }}"
+        source: pull
+        force_source: true
+      loop: "{{ beaker_container_images }}"
+      tags:
+        - docker
+        - beaker
+        - linux
+        - linuxdeb
+        - linuxrpm
+
+    - name: "BeaKer Install: Create snapshots directory."
+      debug:
+        msg: "/var/BeaKer/snapshots (mode 777)"
