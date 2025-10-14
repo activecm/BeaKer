@@ -9,15 +9,28 @@ volumes:
 configs:
   elasticsearch:
     file: /etc/BeaKer/elasticsearch/elasticsearch.yml
-    external: true
   kibana:
     file: /etc/BeaKer/kibana/kibana.yml
-    external: true
 services:
   elasticsearch:
     image: elasticsearch:${ELK_STACK_VERSION:-latest}
     build: ./elasticsearch
     restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "--fail",
+          "-sk",
+          "-u",
+          "elastic:${ELASTIC_PASSWORD}",
+          "https://localhost:9200/_cat/health",
+        ]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
     environment:
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - "ES_JAVA_OPTS=-Xms3g -Xmx3g"
@@ -28,12 +41,19 @@ services:
         target: /usr/share/elasticsearch/config/elasticsearch.yml
     volumes:
       - elasticsearch_persistent:/usr/share/elasticsearch/data
-      - ${BEAKER_CONFIG_DIR:-/etc/BeaKer/}certificates:/usr/share/elasticsearch/config/certificates
+      - ${BEAKER_CONFIG_DIR:-/etc/BeaKer/}/certificates:/usr/share/elasticsearch/config/certificates
       - elasticsearch_snapshots:/usr/share/elasticsearch/snapshots
   kibana:
     image: kibana:${ELK_STACK_VERSION:-latest}
     build: ./kibana
     restart: unless-stopped
+    healthcheck:
+      test:
+        ["CMD", "curl", "--fail", "-ski", "https://localhost:5601/api/status"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
     environment:
       - KIBANA_SERVICE_TOKEN=${KIBANA_SERVICE_TOKEN}
       - SAVED_OBJECTS_ENCRYPTION_KEY=${SAVED_OBJECTS_ENCRYPTION_KEY}
@@ -45,15 +65,9 @@ services:
       - source: kibana
         target: /usr/share/kibana/config/kibana.yml
     volumes:
-      - ${BEAKER_CONFIG_DIR:-/etc/BeaKer/}certificates:/usr/share/kibana/config/certificates
+      - ${BEAKER_CONFIG_DIR:-/etc/BeaKer/}/certificates:/usr/share/kibana/config/certificates
     depends_on:
       - elasticsearch
-  #  check_kibana:
-  #    image: activecm-beaker/check_kibana:latest
-  #    build: ./check_kibana
-  #    restart: "no"
-  #    depends_on:
-  #      - kibana
   es-dump:
     image: taskrabbit/elasticsearch-dump:v6.28.0
     restart: "no"
