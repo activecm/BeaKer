@@ -78,7 +78,12 @@ else
 fi
 
 # create installer archive
-tar -czf "beaker-$VERSION.tar.gz" "$BASE_DIR"
+if [ "$(uname)" == "Darwin" ]; then
+    tar --no-xattrs --disable-copyfile -czf "beaker-$VERSION.tar.gz" "$BASE_DIR"
+else
+    tar -czf "beaker-$VERSION.tar.gz" "$BASE_DIR"
+fi
+# tar -czf "beaker-$VERSION.tar.gz" "$BASE_DIR"
 
 # delete staging folder
 rm -rf "$BASE_DIR"
