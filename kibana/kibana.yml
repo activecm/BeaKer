@@ -2,12 +2,13 @@
 server.name: "BeaKer-Kibana"
 server.host: "0.0.0.0"
 server.ssl.enabled: true
-server.ssl.certificate: /usr/share/kibana/config/certificates/Kibana/Kibana.crt
-server.ssl.key: /usr/share/kibana/config/certificates/Kibana/Kibana.key
+server.ssl.certificate: /usr/share/kibana/config/certificates/instance/instance.crt
+server.ssl.key: /usr/share/kibana/config/certificates/instance/instance.key
 
-elasticsearch.hosts: [ "https://elasticsearch:9200" ]
+elasticsearch.hosts: ["https://elasticsearch:9200"]
 elasticsearch.ssl.verificationMode: certificate
-elasticsearch.ssl.certificateAuthorities: [ "/usr/share/kibana/config/certificates/ca/ca.crt" ]
+elasticsearch.ssl.certificateAuthorities:
+  ["/usr/share/kibana/config/certificates/ca/ca.crt"]
 elasticsearch.serviceAccountToken: "${KIBANA_SERVICE_TOKEN}"
 
 xpack.encryptedSavedObjects.encryptionKey: "${SAVED_OBJECTS_ENCRYPTION_KEY}"
