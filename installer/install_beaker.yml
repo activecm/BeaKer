@@ -77,7 +77,6 @@
         - linuxrpm
 
     - name: "BeaKer Install: Pull from GitHub Container Repository."
-
       community.docker.docker_image:
         name: "{{ item }}"
         source: pull
@@ -91,5 +90,84 @@
         - linuxrpm
 
     - name: "BeaKer Install: Create snapshots directory."
-      debug:
-        msg: "/var/BeaKer/snapshots (mode 777)"
+      ansible.builtin.file:
+        path: "/var/BeaKer/snapshots"
+        state: directory
+        owner: root
+        group: root
+        mode: 0777
+      tags:
+        - docker
+        - beaker
+        - linux
+        - linuxdeb
+        - linuxrpm
+
+    - name: "BeaKer Install: Create Certificates"
+      block:
+        # Make sure certs don't exist before continuing
+        - name: "BeaKer Install: Check if certificates already exist."
+          stat:
+            path: "/etc/BeaKer/certificates/{{ item }}"
+          with_items:
+            - "ca/ca.crt"
+            - "ca/ca.key"
+            - "instance/instance.crt"
+            - "instance/instance.key"
+          register: check_cert_files
+
+        - name: "Whatever"
+          debug:
+            var: check_cert_files
+          failed_when: true
+
+        - name: "BeaKer Install: Generate ELK CA."
+          command: "{{ item }}"
+          with_items:
+            - "beaker run --rm --user root elasticsearch elasticsearch-certutil ca --pem --days 10950 --out /usr/share/elasticsearch/config/certificates/ca.zip > /dev/null"
+            - "unzip /etc/BeaKer/certificates/ca.zip -d /etc/BeaKer/certificates"
+            - "rm /etc/BeaKer/certificates/ca.zip"
+
+        - name: "BeaKer Install: Generate ELK certificates."
+          command: "{{ item }}"
+          with_items:
+            - "beaker run --rm --user root elasticsearch /usr/share/elasticsearch/bin/elasticsearch-certutil cert --ca-cert /usr/share/elasticsearch/config/certificates/ca/ca.crt --ca-key /usr/share/elasticsearch/config/certificates/ca/ca.key --pem --days 10950 --out /usr/share/elasticsearch/config/certificates/certs.zip > /dev/null"
+            - "unzip /etc/BeaKer/certificates/certs.zip -d /etc/BeaKer/certificates"
+            - "rm /etc/BeaKer/certificates/certs.zip"
+
+    #    - name: "BeaKer Install: Start BeaKer"
+    #      command: "beaker up -d"
+
+    - name: "BeaKer Install: Wait for BeaKer Docker containers to be healthy"
+      community.docker.docker_container_info:
+        name: "{{ item }}"
+      until: "container_info.container.State.Health.Status == 'healthy'"
+      # register: container_info
+      retries: 15
+      delay: 10
+      loop:
+        - beaker-es-dump-1
+        - beaker-elasticsearch-1
+        - beaker-kibana-1
+
+    - name: "BeaKer Install: Wait for Elasticsearch API"
+      uri:
+        url: "https://localhost:9200"
+        user: "elastic"
+        password: "{{ elastic_password }}"
+        # might need url_username/url_password if basic auth
+        return_content: yes
+      until: uri_output.status == 200
+      retries: 10
+      delay: 15
+
+    - name: "BeaKer Install: Wait for Kibana API"
+      uri:
+        url: "https://localhost:5601/api/status"
+        user: "elastic"
+        password: "{{ elastic_password }}"
+        # might need url_username/url_password if basic auth
+        return_content: yes
+      until: uri_output.status == 200
+      retries: 10
+      delay: 15
