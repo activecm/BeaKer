@@ -50,11 +50,37 @@
 
     - name: "BeaKer Install: Transfer installation files to /etc/BeaKer."
       copy:
-        src: "./files/opt/"
+        src: "./files/opt/{{ item }}"
         dest: /opt/BeaKer/
         owner: root
         group: root
         mode: 0755
+      with_items:
+        - LICENSE
+        - beaker.sh
+        - docker-compose.yml
+        - elasticsearch
+        - kibana
+      tags:
+        - docker
+        - beaker
+        - linux
+        - linuxdeb
+        - linuxrpm
+
+    - name: "BeaKer Install: Check if environment file exists."
+      stat:
+        path: "/opt/BeaKer/.env"
+      register: env_file_stat
+
+    - name: "BeaKer Install: Copy environment file to /opt/BeaKer."
+      copy:
+        src: "./files/opt/.env"
+        dest: /opt/BeaKer/
+        owner: root
+        group: root
+        mode: 0755
+      when: env_file_stat.stat is not defined or not env_file_stat.stat.exists
       tags:
         - docker
         - beaker
@@ -144,41 +170,27 @@
             crt_stat: "{{ (check_cert_files.results | selectattr('item', 'equalto', 'instance/instance.crt')) }}"
             key_stat: "{{ (check_cert_files.results | selectattr('item', 'equalto', 'instance/instance.key')) }}"
 
-    - name: "Short circuit"
-      fail:
+    - name: "BeaKer Install: Generate ELK encryption keys."
+      ansible.builtin.replace:
+        path: /opt/BeaKer/.env
+        regexp: "^{{ item }}=$"
+        replace: "{{ item }}={{ lookup('community.general.random_string', base64=True, length=64) }}"
+      when: env_file_stat.stat is not defined or not env_file_stat.stat.exists
+      loop:
+        - "SAVED_OBJECTS_ENCRYPTION_KEY"
+        - "REPORTING_ENCRYPTION_KEY"
+        - "SECURITY_ENCRYPTION_KEY"
 
-    #    - name: "BeaKer Install: Start BeaKer"
-    #      command: "beaker up -d"
+    - name: "BeaKer Install: Start BeaKer."
+      command: "beaker up -d"
 
     - name: "BeaKer Install: Wait for BeaKer Docker containers to be healthy"
       community.docker.docker_container_info:
         name: "{{ item }}"
       until: "container_info.container.State.Health.Status == 'healthy'"
-      # register: container_info
+      register: container_info
       retries: 15
       delay: 10
       loop:
         - beaker-elasticsearch-1
         - beaker-kibana-1
-
-    - name: "BeaKer Install: Wait for Elasticsearch API"
-      uri:
-        url: "https://localhost:9200"
-        user: "elastic"
-        password: "{{ elastic_password }}"
-        # might need url_username/url_password if basic auth
-        return_content: yes
-      until: uri_output.status == 200
-      retries: 10
-      delay: 15
-
-    - name: "BeaKer Install: Wait for Kibana API"
-      uri:
-        url: "https://localhost:5601/api/status"
-        user: "elastic"
-        password: "{{ elastic_password }}"
-        # might need url_username/url_password if basic auth
-        return_content: yes
-      until: uri_output.status == 200
-      retries: 10
-      delay: 15
