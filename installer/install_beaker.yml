@@ -142,6 +142,7 @@
             - "instance/instance.key"
           register: check_cert_files
 
+          # FIXME: Either install `unzip` package on target systems or see if elasticsearch container includes unzip
         - name: "BeaKer Install: Generate ELK certificate authority certificate."
           command: "{{ item }}"
           with_items:
@@ -193,7 +194,7 @@
     - name: "BeaKer Install: Start BeaKer."
       command: "beaker up -d"
 
-    - name: "BeaKer Install: Wait for BeaKer Elasticsearch Docker container to be healthy"
+    - name: "BeaKer Install: Wait for BeaKer Elasticsearch Docker container to be healthy."
       community.docker.docker_container_info:
         name: "beaker-elasticsearch-1"
       until: "container_info.exists and container_info.container.State.Health.Status == 'healthy'"
@@ -257,7 +258,7 @@
     - name: "BeaKer Install: Check for and create index lifecycle policy."
       block:
         - name: "BeaKer Install: Check if index lifecycle policy already exists."
-          uri:
+          ansible.builtin.uri:
             url: "https://localhost:9200/_ilm/policy/beaker"
             method: GET
             validate_certs: false
@@ -267,7 +268,7 @@
           register: idx_lifecycle_policy_exists
 
         - name: "BeaKer Install: Upload index lifecycle policy."
-          uri:
+          ansible.builtin.uri:
             url: "https://localhost:9200/_ilm/policy/beaker"
             method: PUT
             user: "elastic"
@@ -279,4 +280,66 @@
             body_format: json
           when: idx_lifecycle_policy_exists.status == 404
 
-    # TODO: Import stuff
+    - name: "BeaKer Install: Create ingest pipelines."
+      ansible.builtin.uri:
+        url: "https://localhost:9200/_ingest/pipeline/{{ item }}"
+        method: PUT
+        user: "elastic"
+        password: "{{ ELASTIC_PASSWORD }}"
+        validate_certs: false
+        src: "/etc/BeaKer/elasticsearch/templates/{{ item }}.json"
+        remote_src: true
+        force_basic_auth: true
+        body_format: json
+      with_items:
+        - "winlogbeat-8.7.0-routing"
+        - "winlogbeat-8.7.0-sysmon"
+        - "winlogbeat-8.7.0-security"
+        - "winlogbeat-8.7.0-powershell"
+        - "winlogbeat-8.7.0-powershell_operational"
+
+    # Dashboard file must be handled slightly differently because of ndjson format.
+    - name: "BeaKer Install: Upload Kibana dashboard."
+      ansible.builtin.uri:
+        url: "https://localhost:5601/api/saved_objects/_import?overwrite=true"
+        method: POST
+        body:
+          file:
+            filename: "{{ kb_dashboard_file }}"
+            content: "{{ lookup('ansible.builtin.file', kb_dashboard_file) }}"
+            mime_type: application/octet-stream
+        body_format: form-multipart
+        headers:
+          kbn-xsrf: "true"
+        user: elastic
+        password: "{{ ELASTIC_PASSWORD }}"
+        force_basic_auth: true
+        validate_certs: false
+      vars:
+        kb_dashboard_file: "/etc/BeaKer/kibana/kibana_dashboards-8.0.0.ndjson"
+
+    - name: "BeaKer Install: Check if ingest account already exists."
+      ansible.builtin.uri:
+        url: "https://localhost:9200/_security/user/sysmon-ingest"
+        user: elastic
+        password: "{{ ELASTIC_PASSWORD }}"
+        validate_certs: false
+        force_basic_auth: true
+        status_code: [200, 404]
+      register: kb_ingest_account_exists
+
+    - name: "BeaKer Install: Create and configure ingest account."
+      block:
+        - name: "BeaKer Install: Create ingest account."
+          debug:
+            msg: "sure"
+
+        - name: "BeaKer Install: Generate ingest user password."
+          set_fact:
+            SYSMON_INGEST_PASSWORD: "{{ lookup('community.general.random_string', special=False, length=32) }}"
+
+        - name: "TODO"
+          debug:
+            msg: "whatever"
+      when: kb_ingest_account_exists.status == 404
+    # TODO: Configure ingest account
