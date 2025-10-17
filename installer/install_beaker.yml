@@ -205,51 +205,53 @@
       set_fact:
         ELASTIC_PASSWORD: "{{ lookup('file', '/opt/BeaKer/.env') | regex_search('ELASTIC_PASSWORD=(.+)\\n', '\\1') | first }}"
 
-    - name: "BeaKer Install: Check for Kibana service token."
-      ansible.builtin.uri:
-        url: "https://localhost:9200/_security/service/elastic/kibana/credential"
-        method: GET
-        validate_certs: false
-        user: "elastic"
-        password: "{{ ELASTIC_PASSWORD }}"
-      register: kb_token_lookup
+    - name: "BeaKer Install: Check for and gtenerate Kibana service token."
+      block:
+        - name: "BeaKer Install: Check for Kibana service token."
+          ansible.builtin.uri:
+            url: "https://localhost:9200/_security/service/elastic/kibana/credential"
+            method: GET
+            validate_certs: false
+            user: "elastic"
+            password: "{{ ELASTIC_PASSWORD }}"
+          register: kb_token_lookup
 
-    - name: "BeaKer Install: Create new Kibana service token."
-      ansible.builtin.uri:
-        url: "https://localhost:9200/_security/service/elastic/kibana/credential/token/kibana-beaker"
-        method: POST
-        validate_certs: false
-        user: "elastic"
-        password: "{{ ELASTIC_PASSWORD }}"
-      when: kb_token_lookup.json.tokens["kibana-beaker"] is not defined
-      register: kb_token_created
+        - name: "BeaKer Install: Create new Kibana service token."
+          ansible.builtin.uri:
+            url: "https://localhost:9200/_security/service/elastic/kibana/credential/token/kibana-beaker"
+            method: POST
+            validate_certs: false
+            user: "elastic"
+            password: "{{ ELASTIC_PASSWORD }}"
+          when: kb_token_lookup.json.tokens["kibana-beaker"] is not defined
+          register: kb_token_created
 
-    - name: "BeaKer Install: Write Kibana service token to file."
-      ansible.builtin.replace:
-        path: /opt/BeaKer/.env
-        regexp: "^KIBANA_SERVICE_TOKEN=$"
-        replace: "KIBANA_SERVICE_TOKEN={{ kb_token_created.json.token.value }}"
-      when: kb_token_lookup.json.tokens["kibana-beaker"] is not defined
+        - name: "BeaKer Install: Write Kibana service token to file."
+          ansible.builtin.replace:
+            path: /opt/BeaKer/.env
+            regexp: "^KIBANA_SERVICE_TOKEN=$"
+            replace: "KIBANA_SERVICE_TOKEN={{ kb_token_created.json.token.value }}"
+          when: kb_token_lookup.json.tokens["kibana-beaker"] is not defined
 
-    - name: "BeaKer Install: Load Kibana service token from environment file."
-      set_fact:
-        KIBANA_SERVICE_TOKEN: "{{ lookup('file', '/opt/BeaKer/.env') | regex_search('KIBANA_SERVICE_TOKEN=(.+)\\n', '\\1') | first }}"
+        - name: "BeaKer Install: Load Kibana service token from environment file."
+          set_fact:
+            KIBANA_SERVICE_TOKEN: "{{ lookup('file', '/opt/BeaKer/.env') | regex_search('KIBANA_SERVICE_TOKEN=(.+)\\n', '\\1') | first }}"
 
-    - name: "BeaKer Install: Restart BeaKer."
-      command: "{{ item }}"
-      with_items:
-        - "beaker down"
-        - "beaker up -d --force-recreate"
+        - name: "BeaKer Install: Restart BeaKer."
+          command: "{{ item }}"
+          with_items:
+            - "beaker down"
+            - "beaker up -d --force-recreate"
 
-    - name: "BeaKer Install: Wait for BeaKer Docker containers to be healthy"
-      community.docker.docker_container_info:
-        name: "{{ item }}"
-      until: "container_info.exists and container_info.container.State.Health.Status == 'healthy'"
-      register: container_info
-      with_items:
-        - beaker-elasticsearch-1
-        - beaker-kibana-1
-      retries: 15
-      delay: 10
+        - name: "BeaKer Install: Wait for BeaKer Docker containers to be healthy"
+          community.docker.docker_container_info:
+            name: "{{ item }}"
+          until: "container_info.exists and container_info.container.State.Health.Status == 'healthy'"
+          register: container_info
+          with_items:
+            - beaker-elasticsearch-1
+            - beaker-kibana-1
+          retries: 15
+          delay: 10
 
     # TODO: Import stuff
