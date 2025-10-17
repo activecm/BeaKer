@@ -170,27 +170,86 @@
             crt_stat: "{{ (check_cert_files.results | selectattr('item', 'equalto', 'instance/instance.crt')) }}"
             key_stat: "{{ (check_cert_files.results | selectattr('item', 'equalto', 'instance/instance.key')) }}"
 
-    - name: "BeaKer Install: Generate ELK encryption keys."
+    - name: "BeaKer Install: Generate random ELK encryption keys."
       ansible.builtin.replace:
         path: /opt/BeaKer/.env
         regexp: "^{{ item }}=$"
         replace: "{{ item }}={{ lookup('community.general.random_string', base64=True, length=64) }}"
-      when: env_file_stat.stat is not defined or not env_file_stat.stat.exists
       loop:
         - "SAVED_OBJECTS_ENCRYPTION_KEY"
         - "REPORTING_ENCRYPTION_KEY"
         - "SECURITY_ENCRYPTION_KEY"
 
+    - name: "BeaKer Install: Generate random Elasticsearch password."
+      set_fact:
+        ELASTIC_PASSWORD: "{{ lookup('community.general.random_string', special=False, length=32) }}"
+
+    - name: "BeaKer Install: Write Elasticsearch password to environment file."
+      ansible.builtin.replace:
+        path: /opt/BeaKer/.env
+        regexp: "^ELASTIC_PASSWORD=$"
+        replace: "ELASTIC_PASSWORD={{ ELASTIC_PASSWORD }}"
+
     - name: "BeaKer Install: Start BeaKer."
       command: "beaker up -d"
+
+    - name: "BeaKer Install: Wait for BeaKer Elasticsearch Docker container to be healthy"
+      community.docker.docker_container_info:
+        name: "beaker-elasticsearch-1"
+      until: "container_info.exists and container_info.container.State.Health.Status == 'healthy'"
+      register: container_info
+      retries: 15
+      delay: 10
+
+    - name: "BeaKer Install: Read Elasticsearch password from environment file."
+      set_fact:
+        ELASTIC_PASSWORD: "{{ lookup('file', '/opt/BeaKer/.env') | regex_search('ELASTIC_PASSWORD=(.+)\\n', '\\1') | first }}"
+
+    - name: "BeaKer Install: Check for Kibana service token."
+      ansible.builtin.uri:
+        url: "https://localhost:9200/_security/service/elastic/kibana/credential"
+        method: GET
+        validate_certs: false
+        user: "elastic"
+        password: "{{ ELASTIC_PASSWORD }}"
+      register: kb_token_lookup
+
+    - name: "BeaKer Install: Create new Kibana service token."
+      ansible.builtin.uri:
+        url: "https://localhost:9200/_security/service/elastic/kibana/credential/token/kibana-beaker"
+        method: POST
+        validate_certs: false
+        user: "elastic"
+        password: "{{ ELASTIC_PASSWORD }}"
+      when: kb_token_lookup.json.tokens["kibana-beaker"] is not defined
+      register: kb_token_created
+
+    - name: "BeaKer Install: Write Kibana service token to file."
+      ansible.builtin.replace:
+        path: /opt/BeaKer/.env
+        regexp: "^KIBANA_SERVICE_TOKEN=$"
+        replace: "KIBANA_SERVICE_TOKEN={{ kb_token_created.json.token.value }}"
+      when: kb_token_lookup.json.tokens["kibana-beaker"] is not defined
+
+    - name: "BeaKer Install: Load Kibana service token from environment file."
+      set_fact:
+        KIBANA_SERVICE_TOKEN: "{{ lookup('file', '/opt/BeaKer/.env') | regex_search('KIBANA_SERVICE_TOKEN=(.+)\\n', '\\1') | first }}"
+
+    - name: "BeaKer Install: Restart BeaKer."
+      command: "{{ item }}"
+      with_items:
+        - "beaker down"
+        - "beaker up -d --force-recreate"
 
     - name: "BeaKer Install: Wait for BeaKer Docker containers to be healthy"
       community.docker.docker_container_info:
         name: "{{ item }}"
-      until: "container_info.container.State.Health.Status == 'healthy'"
+      until: "container_info.exists and container_info.container.State.Health.Status == 'healthy'"
       register: container_info
-      retries: 15
-      delay: 10
-      loop:
+      with_items:
         - beaker-elasticsearch-1
         - beaker-kibana-1
+      retries: 15
+      delay: 10
+
+    # TODO: Import stuff
