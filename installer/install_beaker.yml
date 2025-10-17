@@ -205,7 +205,7 @@
       set_fact:
         ELASTIC_PASSWORD: "{{ lookup('file', '/opt/BeaKer/.env') | regex_search('ELASTIC_PASSWORD=(.+)\\n', '\\1') | first }}"
 
-    - name: "BeaKer Install: Check for and gtenerate Kibana service token."
+    - name: "BeaKer Install: Check for and generate Kibana service token."
       block:
         - name: "BeaKer Install: Check for Kibana service token."
           ansible.builtin.uri:
@@ -253,5 +253,30 @@
             - beaker-kibana-1
           retries: 15
           delay: 10
+
+    - name: "BeaKer Install: Check for and create index lifecycle policy."
+      block:
+        - name: "BeaKer Install: Check if index lifecycle policy already exists."
+          uri:
+            url: "https://localhost:9200/_ilm/policy/beaker"
+            method: GET
+            validate_certs: false
+            user: "elastic"
+            password: "{{ ELASTIC_PASSWORD }}"
+            status_code: [200, 404]
+          register: idx_lifecycle_policy_exists
+
+        - name: "BeaKer Install: Upload index lifecycle policy."
+          uri:
+            url: "https://localhost:9200/_ilm/policy/beaker"
+            method: PUT
+            user: "elastic"
+            password: "{{ ELASTIC_PASSWORD }}"
+            validate_certs: false
+            src: "/etc/BeaKer/elasticsearch/templates/winlogbeat-ilm-policy.json"
+            remote_src: true
+            force_basic_auth: true
+            body_format: json
+          when: idx_lifecycle_policy_exists.status == 404
 
     # TODO: Import stuff
