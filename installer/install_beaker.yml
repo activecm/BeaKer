@@ -329,16 +329,66 @@
 
     - name: "BeaKer Install: Create and configure ingest account."
       block:
-        - name: "BeaKer Install: Create ingest account."
-          debug:
-            msg: "sure"
+        - name: "BeaKer Install: Generate and write random ingest account password to environment file."
+          ansible.builtin.replace:
+            path: /opt/BeaKer/.env
+            regexp: "^INGEST_PASSWORD=$"
+            replace: "INGEST_PASSWORD={{ lookup('community.general.random_string', special=False, length=32) }}"
 
-        - name: "BeaKer Install: Generate ingest user password."
+        - name: "BeaKer Install: Read ingest account password from environment file."
           set_fact:
-            SYSMON_INGEST_PASSWORD: "{{ lookup('community.general.random_string', special=False, length=32) }}"
+            INGEST_PASSWORD: "{{ lookup('file', '/opt/BeaKer/.env') | regex_search('INGEST_PASSWORD=(.+)\\n', '\\1') | first }}"
 
-        - name: "TODO"
-          debug:
-            msg: "whatever"
+        - name: "BeaKer Install: Check if ingest role already exists."
+          ansible.builtin.uri:
+            url: "https://localhost:9200/_security/role/sysmon-ingest"
+            user: elastic
+            password: "{{ ELASTIC_PASSWORD }}"
+            validate_certs: false
+            force_basic_auth: true
+            status_code: [200, 404]
+          register: kb_ingest_role_exists
+
+        - name: "BeaKer Install: Create ingest role."
+          ansible.builtin.uri:
+            url: "https://localhost:9200/_security/role/sysmon-ingest"
+            method: POST
+            user: "elastic"
+            password: "{{ ELASTIC_PASSWORD }}"
+            validate_certs: false
+            force_basic_auth: true
+            body_format: json
+            body:
+              run_as:
+              cluster:
+                - "monitor"
+                - "read_ilm"
+                - "read_pipeline"
+              indices:
+                - names:
+                    - "sysmon-*"
+                  privileges:
+                    - "create_doc"
+                    - "create_index"
+                - names:
+                    - "winlogbeat-*"
+                  privileges:
+                    - "create_doc"
+                    - "create_index"
+                    - "auto_configure"
+          when: kb_ingest_role_exists.status == 404
+
+        - name: "BeaKer Install: Create ingest account."
+          ansible.builtin.uri:
+            url: "https://localhost:9200/_security/user/sysmon-ingest"
+            method: POST
+            user: "elastic"
+            password: "{{ ELASTIC_PASSWORD }}"
+            validate_certs: false
+            force_basic_auth: true
+            body_format: json
+            body:
+              password: "{{ INGEST_PASSWORD }}"
+              roles:
+                - "sysmon-ingest"
       when: kb_ingest_account_exists.status == 404
-    # TODO: Configure ingest account
