@@ -3,12 +3,12 @@
   become: true
 
   vars:
-    beaker_version: "REPLACE_ME"
-    # TODO: container name variables
+    beaker_version: "BEAKER_VERSION_REPLACE_ME"
+    elk_version: "ELK_VERSION_REPLACE_ME"
     beaker_container_images:
       - "taskrabbit/elasticsearch-dump:v6.28.0"
-      - "elasticsearch:8.17.10"
-      - "kibana:8.17.10"
+      - "elasticsearch:{{ elk_version }}"
+      - "kibana:{{ elk_version }}"
     ansible_python_interpreter: /bin/python3
 
   # The install_pre.yml script should already have been run by this point

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BEAKER_VERSION="REPLACE_ME"
+BEAKER_VERSION="BEAKER_VERSION_REPLACE_ME"
 
 if [ -n "$1" ]; then
 	install_target="$1"

@@ -5,6 +5,9 @@ set -e
 # and copies files that must be in the installer into the temporary folder.
 # Once all directories are placed in stage, it is compressed and the temporary folder is deleted
 
+# ELK version
+ELK_VERSION="8.17.10"
+
 # get BeaKer version from git
 VERSION=$(git describe --always --abbrev=0 --tags)
 echo "Generating installer for BeaKer $VERSION..."
@@ -18,12 +21,10 @@ BASE_DIR="./beaker-$VERSION-installer"
 rm -rf "$BASE_DIR"
 
 # create ansible subfolders
-#SCRIPTS="$BASE_DIR/scripts"
 ANSIBLE_FILES="$BASE_DIR/files"
 
 mkdir "$BASE_DIR"
 mkdir -p "$ANSIBLE_FILES"
-#mkdir -p "$SCRIPTS"
 
 # create subfolders (for files that installed BeaKer will contain)
 INSTALL_OPT="$ANSIBLE_FILES"/opt
@@ -64,17 +65,16 @@ cp ../.env.production "$INSTALL_OPT"/.env
 
 # update version variables for files that need them
 if [ "$(uname)" == "Darwin" ]; then
-    sed -i'.bak' "s/REPLACE_ME/${VERSION}/g" "$BASE_DIR/install_beaker.yml" 
-    sed -i'.bak' "s/REPLACE_ME/${VERSION}/g" "$BASE_DIR/install_beaker.sh"
-    # sed -i'.bak' "s#ghcr.io/activecm/rita:latest#ghcr.io/activecm/rita:${VERSION}#g" "$INSTALL_OPT/docker-compose.yml"
+    sed -i'.bak' "s/BEAKER_VERSION_REPLACE_ME/${VERSION}/g" "$BASE_DIR/install_beaker.yml"
+    sed -i'.bak' "s/ELK_VERSION_REPLACE_ME/${ELK_VERSION}/g" "$BASE_DIR/install_beaker.yml"
+    sed -i'.bak' "s/BEAKER_VERSION_REPLACE_ME/${VERSION}/g" "$BASE_DIR/install_beaker.sh"
     
     rm "$BASE_DIR/install_beaker.yml.bak"
     rm "$BASE_DIR/install_beaker.sh.bak"
-    # rm "$INSTALL_OPT/docker-compose.yml.bak"
 else 
-    sed -i  "s/REPLACE_ME/${VERSION}/g" "$BASE_DIR/install_beaker.yml" 
-    sed -i  "s/REPLACE_ME/${VERSION}/g" "$BASE_DIR/install_beaker.sh"
-    # sed -i  "s#ghcr.io/activecm/rita:latest#ghcr.io/activecm/rita:${VERSION}#g" "$INSTALL_OPT/docker-compose.yml"
+    sed -i "s/REPLACE_ME/${VERSION}/g" "$BASE_DIR/install_beaker.yml"
+    sed -i "s/ELK_VERSION_REPLACE_ME/${ELK_VERSION}/g" "$BASE_DIR/install_beaker.yml"
+    sed -i "s/REPLACE_ME/${VERSION}/g" "$BASE_DIR/install_beaker.sh"
 fi
 
 # create installer archive
@@ -83,7 +83,6 @@ if [ "$(uname)" == "Darwin" ]; then
 else
     tar -czf "beaker-$VERSION.tar.gz" "$BASE_DIR"
 fi
-# tar -czf "beaker-$VERSION.tar.gz" "$BASE_DIR"
 
 # delete staging folder
 rm -rf "$BASE_DIR"
