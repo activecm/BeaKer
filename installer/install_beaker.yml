@@ -7,7 +7,6 @@
     # TODO: container name variables
     beaker_container_images:
       - "taskrabbit/elasticsearch-dump:v6.28.0"
-      # - "activecm-beaker/check_kibana:latest"
       - "elasticsearch:8.17.10"
       - "kibana:8.17.10"
     ansible_python_interpreter: /bin/python3
@@ -15,7 +14,6 @@
   # The install_pre.yml script should already have been run by this point
 
   tasks:
-    #Make directories
     - name: "BeaKer Install: Create configuration directories."
       ansible.builtin.file:
         path: "{{ item }}"
@@ -132,7 +130,6 @@
 
     - name: "BeaKer Install: Check for and create certificates."
       block:
-        # Make sure certs don't exist before continuing
         - name: "BeaKer Install: Check if certificates already exist."
           stat:
             path: "/etc/BeaKer/certificates/{{ item }}"
