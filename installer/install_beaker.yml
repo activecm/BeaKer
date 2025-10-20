@@ -92,6 +92,7 @@
       copy:
         src: "/opt/BeaKer/beaker.sh"
         dest: /usr/local/bin/beaker
+        remote_src: true
         owner: root
         group: root
         mode: 0755
@@ -201,9 +202,14 @@
       retries: 15
       delay: 10
 
-    - name: "BeaKer Install: Read Elasticsearch password from environment file."
+    - name: "BeaKer Install: Read BeaKer environment file."
+      ansible.builtin.slurp:
+        src: /opt/BeaKer/.env
+      register: beaker_env
+
+    - name: "BeaKer Install: Parse Elasticsearch password from environment file contents."
       set_fact:
-        ELASTIC_PASSWORD: "{{ lookup('file', '/opt/BeaKer/.env') | regex_search('ELASTIC_PASSWORD=(.+)\\n', '\\1') | first }}"
+        ELASTIC_PASSWORD: "{{ beaker_env['content'] | b64decode | regex_search('ELASTIC_PASSWORD=(.+)\\n', '\\1') | first }}"
 
     - name: "BeaKer Install: Check for Kibana service token."
       ansible.builtin.uri:
@@ -293,6 +299,7 @@
         - "winlogbeat-8.7.0-powershell_operational"
 
     # Dashboard file must be handled slightly differently because of ndjson format.
+    # Form multipart body format also requires either using slurp or local file read.
     - name: "BeaKer Install: Upload Kibana dashboard."
       ansible.builtin.uri:
         url: "https://localhost:5601/api/saved_objects/_import?overwrite=true"
@@ -310,7 +317,7 @@
         force_basic_auth: true
         validate_certs: false
       vars:
-        kb_dashboard_file: "/etc/BeaKer/kibana/kibana_dashboards-8.0.0.ndjson"
+        kb_dashboard_file: "files/etc/kibana/kibana_dashboards-8.0.0.ndjson"
 
     - name: "BeaKer Install: Check if ingest account already exists."
       ansible.builtin.uri:
@@ -330,9 +337,14 @@
             regexp: "^INGEST_PASSWORD=$"
             replace: "INGEST_PASSWORD={{ lookup('community.general.random_string', special=False, length=32) }}"
 
-        - name: "BeaKer Install: Read ingest account password from environment file."
+        - name: "BeaKer Install: Read BeaKer environment file."
+          ansible.builtin.slurp:
+            src: /opt/BeaKer/.env
+          register: beaker_env
+
+        - name: "BeaKer Install: Parse ingest password from environment file contents."
           set_fact:
-            INGEST_PASSWORD: "{{ lookup('file', '/opt/BeaKer/.env') | regex_search('INGEST_PASSWORD=(.+)\\n', '\\1') | first }}"
+            INGEST_PASSWORD: "{{ beaker_env['content'] | b64decode | regex_search('INGEST_PASSWORD=(.+)\\n', '\\1') | first }}"
 
         - name: "BeaKer Install: Check if ingest role already exists."
           ansible.builtin.uri:
