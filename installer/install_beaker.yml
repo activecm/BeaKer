@@ -38,7 +38,7 @@
         dest: /etc/BeaKer/
         owner: root
         group: root
-        mode: 0755
+        mode: 0644
       tags:
         - docker
         - beaker
@@ -46,7 +46,7 @@
         - linuxdeb
         - linuxrpm
 
-    - name: "BeaKer Install: Transfer installation files to /etc/BeaKer."
+    - name: "BeaKer Install: Transfer executable installation files to /opt/BeaKer."
       copy:
         src: "./files/opt/{{ item }}"
         dest: /opt/BeaKer/
@@ -54,11 +54,26 @@
         group: root
         mode: 0755
       with_items:
-        - LICENSE
         - beaker.sh
-        - docker-compose.yml
         - elasticsearch
         - kibana
+      tags:
+        - docker
+        - beaker
+        - linux
+        - linuxdeb
+        - linuxrpm
+
+    - name: "BeaKer Install: Transfer license and docker-compose.yml to /opt/BeaKer."
+      copy:
+        src: "./files/opt/{{ item }}"
+        dest: /opt/BeaKer/
+        owner: root
+        group: root
+        mode: 0644
+      with_items:
+        - LICENSE
+        - docker-compose.yml
       tags:
         - docker
         - beaker
@@ -77,7 +92,7 @@
         dest: /opt/BeaKer/
         owner: root
         group: root
-        mode: 0755
+        mode: 0640
       when: env_file_stat.stat is not defined or not env_file_stat.stat.exists
       tags:
         - docker
