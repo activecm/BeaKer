@@ -5,7 +5,7 @@
   become: true
 
   vars:
-    ansible_python_interpreter: /bin/python3
+    ansible_python_interpreter: /usr/bin/python3
 
   pre_tasks:
     # Make sure OS is supported
