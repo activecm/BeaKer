@@ -9,11 +9,66 @@
       - "taskrabbit/elasticsearch-dump:v6.28.0"
       - "elasticsearch:{{ elk_version }}"
       - "kibana:{{ elk_version }}"
-    ansible_python_interpreter: /bin/python3
+    ansible_python_interpreter: /usr/bin/python3
 
   # The install_pre.yml script should already have been run by this point
 
   tasks:
+    - name: "BeaKer Install: Check if environment file already exists."
+      stat:
+        path: "/opt/BeaKer/.env"
+      register: env_file_stat
+
+    - name: "BeaKer Install: Read BeaKer environment file."
+      ansible.builtin.slurp:
+        src: /opt/BeaKer/.env
+      register: beaker_env
+      when: env_file_stat.stat is defined and env_file_stat.stat.exists
+
+    - name: "BeaKer Install: Get current ELK stack version."
+      set_fact:
+        ELK_STACK_VERSION: "{{ beaker_env['content'] | b64decode | regex_search('ELK_STACK_VERSION=(.+)\\n', '\\1') | first }}"
+      when: beaker_env is defined
+
+    - name: "BeaKer Install: Perform BeaKer upgrade."
+      block:
+        - name: "BeaKer Upgrade: Stop BeaKer"
+          command: "beaker down"
+
+        - name: "BeaKer Upgrade: Delete /opt/BeaKer directory."
+          ansible.builtin.file:
+            path: /opt/BeaKer
+            state: absent
+
+        - name: "BeaKer Upgrade: Recreate /opt/BeaKer directory."
+          ansible.builtin.file:
+            path: "/opt/BeaKer"
+            state: directory
+            owner: root
+            group: root
+            mode: 0755
+
+        - name: "BeaKer Upgrade: Copy existing BeaKer environment to /opt/BeaKer."
+          copy:
+            src: "/etc/BeaKer/env"
+            dest: "/opt/BeaKer/.env"
+            remote_src: true
+            owner: root
+            group: root
+            mode: 0640
+
+        - name: "BeaKer Upgrade: Change ELK stack version in environment file."
+          ansible.builtin.replace:
+            path: /opt/BeaKer/.env
+            regexp: "^ELK_STACK_VERSION=.+$"
+            replace: "ELK_STACK_VERSION={{ elk_version }}"
+
+        - name: "BeaKer Upgrade: Remove /etc/BeaKer directory."
+          ansible.builtin.file:
+            path: /etc/BeaKer
+            state: absent
+      when: ELK_STACK_VERSION is defined and ELK_STACK_VERSION is version(elk_version, '<', version_type='semver')
+
     - name: "BeaKer Install: Create configuration directories."
       ansible.builtin.file:
         path: "{{ item }}"
@@ -80,11 +135,6 @@
         - linux
         - linuxdeb
         - linuxrpm
-
-    - name: "BeaKer Install: Check if environment file exists."
-      stat:
-        path: "/opt/BeaKer/.env"
-      register: env_file_stat
 
     - name: "BeaKer Install: Copy environment file to /opt/BeaKer."
       copy:
