@@ -133,7 +133,7 @@ This will stop and remove all services associated with BeaKer.
 
 On the BeaKer server, the `beaker` script can be used to manage BeaKer's Docker containers. The table below contains a list of operations and their associated commands.
 
-| Operation                          | Command(s)                      |
+| Operation                          | Command                         |
 | :--------------------------------- | :------------------------------ |
 | Start BeaKer (foreground)          | `beaker up`                     |
 | Start BeaKer (background)          | `beaker up -d`                  |
