@@ -11,6 +11,10 @@
       - "kibana:{{ elk_version }}"
     ansible_python_interpreter: /usr/bin/python3
 
+  # Make sure /usr/local/bin is on path to allow for installer to see/use `beaker` command
+  environment:
+    PATH: "{{ ansible_env.PATH }}:/usr/local/bin"
+
   # The install_pre.yml script should already have been run by this point
 
   tasks:
@@ -28,7 +32,7 @@
     - name: "BeaKer Install: Get current ELK stack version."
       set_fact:
         ELK_STACK_VERSION: "{{ beaker_env['content'] | b64decode | regex_search('ELK_STACK_VERSION=(.+)\\n', '\\1') | first }}"
-      when: beaker_env is defined
+      when: beaker_env is not skipped
 
     - name: "BeaKer Install: Perform BeaKer upgrade."
       block:

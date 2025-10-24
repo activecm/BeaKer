@@ -305,15 +305,9 @@
             - linux
             - linuxrpm
       when: ( ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Rocky' )
-#    - name: "BeaKer Pre: Transfer docker-compose script to target system for backwards compatibility."
-#      copy:
-#        src: docker-compose
-#        dest: /usr/local/bin/docker-compose
-#        owner: root
-#        group: root
-#        mode: 0755
-#      tags:
-#        - docker
-#        - linux
-#        - linuxdeb
-#        - linuxrpm
+
+    - name: "BeaKer Pre: Start and enable Docker service."
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
