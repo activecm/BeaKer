@@ -41,8 +41,8 @@ cp ./install_pre.yml "$BASE_DIR"
 cp ./install_post.yml "$BASE_DIR"
 cp ./install_beaker.sh "$BASE_DIR" # entrypoint
 
-# copy files to helper script folder
-cp ./ansible-installer.sh "$BASE_DIR"
+# copy/download files to helper script folder
+curl --fail --silent --show-error -o "$BASE_DIR"/ansible-installer.sh https://raw.githubusercontent.com/activecm/rita/refs/heads/main/installer/install_scripts/ansible-installer.sh
 cp ./helper.sh "$BASE_DIR"
 
 # copy over configuration files to /files/etc
