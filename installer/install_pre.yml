@@ -61,7 +61,7 @@
       package:
         name: yum-utils
         state: latest
-      when: ( ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Rocky' ) and '"yum-utils" not in package_check'
+      when: ( ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Rocky' ) and "yum-utils" not in package_check
       tags:
         - packages
         - linux
