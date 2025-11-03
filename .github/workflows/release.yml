@@ -1,4 +1,4 @@
-name: Generate and upload a release assets
+name: Generate Installer
 
 on:
   release:
@@ -12,32 +12,17 @@ on:
       - released
 
 jobs:
-  upload:
-    name: Upload Artifacts
-    runs-on: ubuntu-20.04
+  upload-installer:
+    name: Upload Installer to Release
+    runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v2
-        with:
-          submodules: true
-      - run: shell-lib/docker/install_docker.sh
+      - uses: actions/checkout@v4
       - run: installer/generate_installer.sh
-      - uses: actions/upload-release-asset@v1
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: installer/BeaKer.tar
-          # Note: This will fail if the asset already exists 
-          # (e.g. editing a release w/o deleting the existing asset)
-          asset_name: BeaKer.tar
-          asset_content_type: application/x-tar
-      - uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: agent/install-sysmon-beats.ps1
-          # Note: This will fail if the asset already exists 
-          # (e.g. editing a release w/o deleting the existing asset)
-          asset_name: install-sysmon-beats.ps1
-          asset_content_type: text/plain
+          files: |
+            installer/beaker-${{ github.ref_name }}.tar.gz
+            agent/install-sysmon-beats.ps1
