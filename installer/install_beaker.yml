@@ -437,6 +437,7 @@
                 - "monitor"
                 - "read_ilm"
                 - "read_pipeline"
+                - "manage_index_templates"
               indices:
                 - names:
                     - "sysmon-*"
@@ -449,6 +450,7 @@
                     - "create_doc"
                     - "create_index"
                     - "auto_configure"
+                    - "view_index_metadata"
           when: kb_ingest_role_exists.status == 404
 
         - name: "BeaKer Install: Create ingest account."
