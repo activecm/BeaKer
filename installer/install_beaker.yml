@@ -455,7 +455,7 @@
           ansible.builtin.uri:
             url: "https://localhost:9200/_security/user/sysmon-ingest"
             method: POST
-            user: "sysmon-ingest"
+            user: "elastic"
             password: "{{ ELASTIC_PASSWORD }}"
             validate_certs: false
             force_basic_auth: true
