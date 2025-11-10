@@ -58,7 +58,7 @@ Note that recommended hardware specifications are listed as a lower bound. More 
 > The latest BeaKer installer can be used to upgrade BeaKer installations using ELK stack versions as old as 7.17.
 > Upgrading BeaKer installations should not result in data loss, however this is not guaranteed. To ensure that no data is lost, it is recommended that you first perform a [Snapshot](https://www.elastic.co/docs/deploy-manage/tools/snapshot-and-restore).
 > The BeaKer environment file will be preserved through server upgrades. However, web certificates will be re-generated when upgrading from BeaKer v0.0.14 to v1.0.0.
-> Upgrading BeaKer using the latest installer is only possible on Linux distributions as old as Ubuntu 20.04, CentOS 8, Rocky Linux 8, and Red Hat Enterprise Linux (RHEL) 8.
+> Upgrading BeaKer using the latest installer is only possible on Linux distributions as old as Ubuntu 20.04, CentOS 8, and Rocky Linux 8.
 
 Download the [latest BeaKer release](https://github.com/activecm/BeaKer/releases/latest) tarball and upload it to an appropriate Linux system.
 
