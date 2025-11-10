@@ -84,6 +84,7 @@ if [ -n "$remote_targets" ]; then
 	fi
 fi
 
+status "Installing Ansible..."
 bash ./ansible-installer.sh
 
 status "Installing BeaKer via Ansible on $install_target"
