@@ -87,6 +87,9 @@ fi
 status "Installing Ansible..."
 bash ./ansible-installer.sh
 
+# prepend ~/.local/bin to path if not present
+[[ ":$PATH:" != *":$HOME/.local/bin:"* ]] && PATH="$HOME/.local/bin:${PATH}"
+
 status "Installing BeaKer via Ansible on $install_target"
 
 if [ "$install_target" = "localhost" -o "$install_target" = "127.0.0.1" -o "$install_target" = "::1" ]; then
