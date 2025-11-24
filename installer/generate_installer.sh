@@ -42,9 +42,9 @@ cp ./install_post.yml "$BASE_DIR"
 cp ./install_beaker.sh "$BASE_DIR" # entrypoint
 
 # copy/download files to helper script folder
-# TODO: use main branch ansible-installer.sh when RITA PR#84 is merged
+# TODO: use main branch ansible-installer.sh when changes from RITA PR#84 are merged into main branch
 # curl --fail --silent --show-error -o "$BASE_DIR"/ansible-installer.sh https://raw.githubusercontent.com/activecm/rita/refs/heads/main/installer/install_scripts/ansible-installer.sh
-curl --fail --silent --show-error -o "$BASE_DIR"/ansible-installer.sh https://raw.githubusercontent.com/activecm/rita/refs/heads/pipx-install-ansible/installer/install_scripts/ansible-installer.sh
+curl --fail --silent --show-error -o "$BASE_DIR"/ansible-installer.sh https://raw.githubusercontent.com/activecm/rita/refs/heads/develop/installer/install_scripts/ansible-installer.sh
 cp ./helper.sh "$BASE_DIR"
 
 # copy over configuration files to /files/etc
