@@ -74,9 +74,9 @@ if [ "$(uname)" == "Darwin" ]; then
     rm "$BASE_DIR/install_beaker.yml.bak"
     rm "$BASE_DIR/install_beaker.sh.bak"
 else 
-    sed -i "s/REPLACE_ME/${VERSION}/g" "$BASE_DIR/install_beaker.yml"
+    sed -i "s/BEAKER_VERSION_REPLACE_ME/${VERSION}/g" "$BASE_DIR/install_beaker.yml"
     sed -i "s/ELK_VERSION_REPLACE_ME/${ELK_VERSION}/g" "$BASE_DIR/install_beaker.yml"
-    sed -i "s/REPLACE_ME/${VERSION}/g" "$BASE_DIR/install_beaker.sh"
+    sed -i "s/BEAKER_VERSION_REPLACE_ME/${VERSION}/g" "$BASE_DIR/install_beaker.sh"
 fi
 
 # create installer archive

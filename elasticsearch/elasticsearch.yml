@@ -1,5 +1,5 @@
 ---
-cluster.name: "BeaKer-ElasticSearch"
+cluster.name: "BeaKer-Elasticsearch"
 network.host: 0.0.0.0
 
 discovery.type: single-node

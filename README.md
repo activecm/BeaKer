@@ -46,9 +46,9 @@ Hardware requirements and recommendations are listed below:
 
 |         | Minimum | Recommended |
 | ------- | ------- | ----------- |
-| CPU     | 2 cores | 4+ cores    |
-| Memory  | 8 GB    | 16+ GB      |
-| Storage | 128 GB  | 256+ GB     |
+| CPU     | 2 cores | 4 cores     |
+| Memory  | 8 GB    | 16 GB       |
+| Storage | 128 GB  | 256 GB      |
 
 Note that recommended hardware specifications are listed as a lower bound. More resources will be beneficial when deploying BeaKer in larger environments.
 
@@ -72,7 +72,7 @@ The BeaKer installer will prompt for a `sudo` password (password for current use
 
 #### Credentials
 
-When using the BeaKer installer to upgrade an old BeaKer server installation, passwords will remain the same as previously configured.
+When using the BeaKer installer to upgrade an old BeaKer server installation, passwords will not be changed.
 
 During a fresh BeaKer installation, account passwords will be randomly-generated and stored in the file at `/opt/BeaKer/.env` after installation is completed.
 
@@ -89,7 +89,7 @@ BeaKer agents are supported on 64-bit Windows operating systems with PowerShell 
 ```json
 {
   "name": "f60c52e796fb",
-  "cluster_name": "BeaKer-ElasticSearch",
+  "cluster_name": "BeaKer-Elasticsearch",
   "cluster_uuid": "Xuenv_Q0TdK67xdq-TLVDQ",
   "version": {
     "number": "8.17.10",
