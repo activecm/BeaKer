@@ -111,7 +111,7 @@
             - linuxrpm
       when: ( ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Rocky' )
 
-    - name: "BeaKer Pre: Install pip on Centos/Fedora."
+    - name: "BeaKer Pre: Install pip on rpm-based distributions."
       yum:
         name:
           - python3-pip
