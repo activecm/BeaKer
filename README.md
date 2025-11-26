@@ -54,7 +54,9 @@ Note that recommended hardware specifications are listed as a lower bound. More 
 
 #### Installation Procedure
 
-> [!Important] > **BeaKer Upgrade Notice**
+> [!Important]
+>
+> **BeaKer Upgrade Notice**
 >
 > The latest BeaKer installer can be used to upgrade BeaKer installations using ELK stack versions as old as 7.17.
 > Upgrading BeaKer installations should not result in data loss, however this is not guaranteed. To ensure that no data is lost, it is recommended that you first perform a [Snapshot](https://www.elastic.co/docs/deploy-manage/tools/snapshot-and-restore).
