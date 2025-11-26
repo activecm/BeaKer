@@ -8,7 +8,7 @@ Sponsored by [Active Countermeasures](https://www.activecountermeasures.com/).
 
 ---
 
-BeaKer is a threat hunting tool designed to provide insight into the Windows hosts, users, and executables responsible for generating network traffic.
+BeaKer is a threat hunting tool designed to provide insight into what Windows hosts, users, and executables are responsible for generating network traffic.
 
 BeaKer visualizes Microsoft Sysmon network using custom Kibana dashboards that show which users and executables created connections between two given IPs, how many times they've connected, the protocols and ports used, and much more.
 
@@ -54,7 +54,8 @@ Note that recommended hardware specifications are listed as a lower bound. More 
 
 #### Installation Procedure
 
-> [!Important] BeaKer Upgrade Notice
+> [!Important] > **BeaKer Upgrade Notice**
+>
 > The latest BeaKer installer can be used to upgrade BeaKer installations using ELK stack versions as old as 7.17.
 > Upgrading BeaKer installations should not result in data loss, however this is not guaranteed. To ensure that no data is lost, it is recommended that you first perform a [Snapshot](https://www.elastic.co/docs/deploy-manage/tools/snapshot-and-restore).
 > The BeaKer environment file will be preserved through server upgrades. However, web certificates will be re-generated when upgrading from BeaKer v0.0.14 to v1.0.0.
