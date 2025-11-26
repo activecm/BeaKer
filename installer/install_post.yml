@@ -1,0 +1,47 @@
+# ansible playbook that performs post-installation steps.
+
+- name: "BeaKer Post: Reboot checks."
+  hosts: "{{ install_hosts }}"
+  become: true
+
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+
+  #Late tasks, including rebooting
+  post_tasks:
+    - name: "BeaKer Post: Check if reboot required on rpm-based systems."
+      command: needs-restarting -r
+      register: reboot_result
+      ignore_errors: True
+      failed_when: reboot_result.rc is not defined
+      when: ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Rocky'
+      tags:
+        - packages
+        - linux
+        - linuxrpm
+
+    - name: "BeaKer Post: Check if reboot required on deb-based systems."
+      register: reboot_required_file
+      stat:
+        path: /var/run/reboot-required
+        get_checksum: no
+      ignore_errors: True
+      when: ansible_distribution == 'Ubuntu'
+      tags:
+        - packages
+        - linux
+        - linuxdeb
+
+    - name: "BeaKer Post: Rebooting system if needed."
+      reboot:
+        reboot_timeout: 120
+      when:
+        - ansible_connection != 'local'
+        - (reboot_required_file.stat is defined and reboot_required_file.stat.exists) or (reboot_result.rc is defined and reboot_result.rc == 1)
+      register: reboot_status
+      ignore_errors: True
+      tags:
+        - packages
+        - linux
+        - linuxdeb
+        - linuxrpm

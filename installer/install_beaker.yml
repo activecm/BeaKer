@@ -1,0 +1,469 @@
+- name: "BeaKer Install: BeaKer installer."
+  hosts: "{{ install_hosts }}"
+  become: true
+
+  vars:
+    beaker_version: "BEAKER_VERSION_REPLACE_ME"
+    elk_version: "ELK_VERSION_REPLACE_ME"
+    beaker_container_images:
+      - "taskrabbit/elasticsearch-dump:v6.28.0"
+      - "elasticsearch:{{ elk_version }}"
+      - "kibana:{{ elk_version }}"
+    ansible_python_interpreter: /usr/bin/python3
+
+  # Make sure /usr/local/bin is on path to allow for installer to see/use `beaker` command
+  environment:
+    PATH: "{{ ansible_env.PATH }}:/usr/local/bin"
+
+  # The install_pre.yml script should already have been run by this point
+
+  tasks:
+    - name: "BeaKer Install: Check if environment file already exists."
+      stat:
+        path: "/opt/BeaKer/.env"
+      register: env_file_stat
+
+    - name: "BeaKer Install: Read BeaKer environment file."
+      ansible.builtin.slurp:
+        src: /opt/BeaKer/.env
+      register: beaker_env
+      when: env_file_stat.stat is defined and env_file_stat.stat.exists
+
+    - name: "BeaKer Install: Get current ELK stack version."
+      set_fact:
+        ELK_STACK_VERSION: "{{ beaker_env['content'] | b64decode | regex_search('ELK_STACK_VERSION=(.+)\\n', '\\1') | first }}"
+      when: beaker_env is not skipped
+
+    - name: "BeaKer Install: Perform BeaKer upgrade."
+      block:
+        - name: "BeaKer Upgrade: Stop BeaKer"
+          command: "beaker down"
+
+        - name: "BeaKer Upgrade: Delete /opt/BeaKer directory."
+          ansible.builtin.file:
+            path: /opt/BeaKer
+            state: absent
+
+        - name: "BeaKer Upgrade: Recreate /opt/BeaKer directory."
+          ansible.builtin.file:
+            path: "/opt/BeaKer"
+            state: directory
+            owner: root
+            group: root
+            mode: 0755
+
+        - name: "BeaKer Upgrade: Copy existing BeaKer environment to /opt/BeaKer."
+          copy:
+            src: "/etc/BeaKer/env"
+            dest: "/opt/BeaKer/.env"
+            remote_src: true
+            owner: root
+            group: root
+            mode: 0640
+
+        - name: "BeaKer Upgrade: Change ELK stack version in environment file."
+          ansible.builtin.replace:
+            path: /opt/BeaKer/.env
+            regexp: "^ELK_STACK_VERSION=.+$"
+            replace: "ELK_STACK_VERSION={{ elk_version }}"
+
+        - name: "BeaKer Upgrade: Remove /etc/BeaKer directory."
+          ansible.builtin.file:
+            path: /etc/BeaKer
+            state: absent
+      when: ELK_STACK_VERSION is defined and ELK_STACK_VERSION is version(elk_version, '<', version_type='semver')
+
+    - name: "BeaKer Install: Create configuration directories."
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: 0755
+      loop:
+        - /etc/BeaKer/
+        - /opt/BeaKer/
+        - /var/BeaKer/
+      tags:
+        - docker
+        - beaker
+        - linux
+        - linuxdeb
+        - linuxrpm
+
+    - name: "BeaKer Install: Transfer configuration files to /etc/BeaKer."
+      copy:
+        src: "./files/etc/"
+        dest: /etc/BeaKer/
+        owner: root
+        group: root
+        mode: 0644
+      tags:
+        - docker
+        - beaker
+        - linux
+        - linuxdeb
+        - linuxrpm
+
+    - name: "BeaKer Install: Transfer executable installation files to /opt/BeaKer."
+      copy:
+        src: "./files/opt/{{ item }}"
+        dest: /opt/BeaKer/
+        owner: root
+        group: root
+        mode: 0755
+      with_items:
+        - beaker.sh
+        - elasticsearch
+        - kibana
+      tags:
+        - docker
+        - beaker
+        - linux
+        - linuxdeb
+        - linuxrpm
+
+    - name: "BeaKer Install: Transfer license and docker-compose.yml to /opt/BeaKer."
+      copy:
+        src: "./files/opt/{{ item }}"
+        dest: /opt/BeaKer/
+        owner: root
+        group: root
+        mode: 0644
+      with_items:
+        - LICENSE
+        - docker-compose.yml
+      tags:
+        - docker
+        - beaker
+        - linux
+        - linuxdeb
+        - linuxrpm
+
+    - name: "BeaKer Install: Copy environment file to /opt/BeaKer."
+      copy:
+        src: "./files/opt/.env"
+        dest: /opt/BeaKer/
+        owner: root
+        group: root
+        mode: 0640
+      when: env_file_stat.stat is not defined or not env_file_stat.stat.exists
+      tags:
+        - docker
+        - beaker
+        - linux
+        - linuxdeb
+        - linuxrpm
+
+    - name: "BeaKer Install: Transfer BeaKer script to /usr/local/bin."
+      copy:
+        src: "/opt/BeaKer/beaker.sh"
+        dest: /usr/local/bin/beaker
+        remote_src: true
+        owner: root
+        group: root
+        mode: 0755
+      tags:
+        - docker
+        - beaker
+        - linux
+        - linuxdeb
+        - linuxrpm
+
+    - name: "BeaKer Install: Pull from GitHub Container Repository."
+      community.docker.docker_image:
+        name: "{{ item }}"
+        source: pull
+        force_source: true
+      loop: "{{ beaker_container_images }}"
+      tags:
+        - docker
+        - beaker
+        - linux
+        - linuxdeb
+        - linuxrpm
+
+    - name: "BeaKer Install: Create snapshots directory."
+      ansible.builtin.file:
+        path: "/var/BeaKer/snapshots"
+        state: directory
+        owner: root
+        group: root
+        mode: 0777
+      tags:
+        - docker
+        - beaker
+        - linux
+        - linuxdeb
+        - linuxrpm
+
+    - name: "BeaKer Install: Check for and create certificates."
+      block:
+        - name: "BeaKer Install: Check if certificates already exist."
+          stat:
+            path: "/etc/BeaKer/certificates/{{ item }}"
+          with_items:
+            - "ca/ca.crt"
+            - "ca/ca.key"
+            - "instance/instance.crt"
+            - "instance/instance.key"
+          register: check_cert_files
+
+        - name: "BeaKer Install: Generate ELK certificate authority certificate."
+          command: "{{ item }}"
+          with_items:
+            - "rm -rf /etc/BeaKer/certificates/ca"
+            - "beaker run --rm --user root elasticsearch elasticsearch-certutil ca --pem --days 10950 --out /usr/share/elasticsearch/config/certificates/ca.zip > /dev/null"
+            - "beaker run --rm --user root --workdir /usr/share/elasticsearch/config/certificates elasticsearch unzip ca.zip"
+            - "rm /etc/BeaKer/certificates/ca.zip"
+          when: ((crt_stat|length==0) or not crt_stat.0.stat.exists) or ((key_stat|length==0) or not key_stat.0.stat.exists)
+          vars:
+            crt_stat: "{{ (check_cert_files.results | selectattr('item', 'equalto', 'ca/ca.crt')) }}"
+            key_stat: "{{ (check_cert_files.results | selectattr('item', 'equalto', 'ca/ca.key')) }}"
+
+        - name: "BeaKer Install: Generate ELK certificate."
+          command: "{{ item }}"
+          with_items:
+            - "rm -rf /etc/BeaKer/certificates/instance"
+            - >-
+              beaker run --rm --user root elasticsearch elasticsearch-certutil cert
+              --ca-cert /usr/share/elasticsearch/config/certificates/ca/ca.crt
+              --ca-key /usr/share/elasticsearch/config/certificates/ca/ca.key
+              --pem --days 10950 --out /usr/share/elasticsearch/config/certificates/certs.zip > /dev/null
+            - "beaker run --rm --user root --workdir /usr/share/elasticsearch/config/certificates elasticsearch unzip certs.zip"
+            - "rm /etc/BeaKer/certificates/certs.zip"
+          when: ((crt_stat|length==0) or not crt_stat.0.stat.exists) or ((key_stat|length==0) or not key_stat.0.stat.exists)
+          vars:
+            crt_stat: "{{ (check_cert_files.results | selectattr('item', 'equalto', 'instance/instance.crt')) }}"
+            key_stat: "{{ (check_cert_files.results | selectattr('item', 'equalto', 'instance/instance.key')) }}"
+
+    - name: "BeaKer Install: Generate random ELK encryption keys."
+      ansible.builtin.replace:
+        path: /opt/BeaKer/.env
+        regexp: "^{{ item }}=$"
+        replace: "{{ item }}={{ lookup('community.general.random_string', base64=True, length=64) }}"
+      loop:
+        - "SAVED_OBJECTS_ENCRYPTION_KEY"
+        - "REPORTING_ENCRYPTION_KEY"
+        - "SECURITY_ENCRYPTION_KEY"
+
+    - name: "BeaKer Install: Generate random Elasticsearch password."
+      set_fact:
+        ELASTIC_PASSWORD: "{{ lookup('community.general.random_string', special=False, length=32) }}"
+
+    - name: "BeaKer Install: Write Elasticsearch password to environment file."
+      ansible.builtin.replace:
+        path: /opt/BeaKer/.env
+        regexp: "^ELASTIC_PASSWORD=$"
+        replace: "ELASTIC_PASSWORD={{ ELASTIC_PASSWORD }}"
+
+    - name: "BeaKer Install: Start BeaKer."
+      command: "beaker up -d"
+
+    - name: "BeaKer Install: Wait for BeaKer Elasticsearch Docker container to be healthy."
+      community.docker.docker_container_info:
+        name: "beaker-elasticsearch-1"
+      until: "container_info.exists and container_info.container.State.Health.Status == 'healthy'"
+      register: container_info
+      retries: 15
+      delay: 10
+
+    - name: "BeaKer Install: Read BeaKer environment file."
+      ansible.builtin.slurp:
+        src: /opt/BeaKer/.env
+      register: beaker_env
+
+    - name: "BeaKer Install: Parse Elasticsearch password from environment file contents."
+      set_fact:
+        ELASTIC_PASSWORD: "{{ beaker_env['content'] | b64decode | regex_search('ELASTIC_PASSWORD=(.+)\\n', '\\1') | first }}"
+
+    - name: "BeaKer Install: Check for Kibana service token."
+      ansible.builtin.uri:
+        url: "https://localhost:9200/_security/service/elastic/kibana/credential"
+        method: GET
+        validate_certs: false
+        user: "elastic"
+        password: "{{ ELASTIC_PASSWORD }}"
+      register: kb_token_lookup
+
+    - name: "BeaKer Install: Generate Kibana service token."
+      block:
+        - name: "BeaKer Install: Create new Kibana service token."
+          ansible.builtin.uri:
+            url: "https://localhost:9200/_security/service/elastic/kibana/credential/token/kibana-beaker"
+            method: POST
+            validate_certs: false
+            user: "elastic"
+            password: "{{ ELASTIC_PASSWORD }}"
+          register: kb_token_created
+
+        - name: "BeaKer Install: Write Kibana service token to file."
+          ansible.builtin.replace:
+            path: /opt/BeaKer/.env
+            regexp: "^KIBANA_SERVICE_TOKEN=$"
+            replace: "KIBANA_SERVICE_TOKEN={{ kb_token_created.json.token.value }}"
+
+        - name: "BeaKer Install: Restart BeaKer."
+          command: "{{ item }}"
+          with_items:
+            - "beaker down"
+            - "beaker up -d --force-recreate"
+
+        - name: "BeaKer Install: Wait for BeaKer Docker containers to be healthy"
+          community.docker.docker_container_info:
+            name: "{{ item }}"
+          until: "container_info.exists and container_info.container.State.Health.Status == 'healthy'"
+          register: container_info
+          with_items:
+            - beaker-elasticsearch-1
+            - beaker-kibana-1
+          retries: 15
+          delay: 10
+      when: kb_token_lookup.json.tokens["kibana-beaker"] is not defined
+
+    - name: "BeaKer Install: Check for and create index lifecycle policy."
+      block:
+        - name: "BeaKer Install: Check if index lifecycle policy already exists."
+          ansible.builtin.uri:
+            url: "https://localhost:9200/_ilm/policy/beaker"
+            method: GET
+            validate_certs: false
+            user: "elastic"
+            password: "{{ ELASTIC_PASSWORD }}"
+            status_code: [200, 404]
+          register: idx_lifecycle_policy_exists
+
+        - name: "BeaKer Install: Upload index lifecycle policy."
+          ansible.builtin.uri:
+            url: "https://localhost:9200/_ilm/policy/beaker"
+            method: PUT
+            user: "elastic"
+            password: "{{ ELASTIC_PASSWORD }}"
+            validate_certs: false
+            src: "/etc/BeaKer/elasticsearch/templates/winlogbeat-ilm-policy.json"
+            remote_src: true
+            force_basic_auth: true
+            body_format: json
+          when: idx_lifecycle_policy_exists.status == 404
+
+    - name: "BeaKer Install: Create ingest pipelines."
+      ansible.builtin.uri:
+        url: "https://localhost:9200/_ingest/pipeline/{{ item }}"
+        method: PUT
+        user: "elastic"
+        password: "{{ ELASTIC_PASSWORD }}"
+        validate_certs: false
+        src: "/etc/BeaKer/elasticsearch/templates/{{ item }}.json"
+        remote_src: true
+        force_basic_auth: true
+        body_format: json
+      with_items:
+        - "winlogbeat-8.7.0-routing"
+        - "winlogbeat-8.7.0-sysmon"
+        - "winlogbeat-8.7.0-security"
+        - "winlogbeat-8.7.0-powershell"
+        - "winlogbeat-8.7.0-powershell_operational"
+
+    # Dashboard file must be handled slightly differently because of ndjson format.
+    # Form multipart body format also requires either using slurp or local file read.
+    - name: "BeaKer Install: Upload Kibana dashboard."
+      ansible.builtin.uri:
+        url: "https://localhost:5601/api/saved_objects/_import?overwrite=true"
+        method: POST
+        body:
+          file:
+            filename: "{{ kb_dashboard_file }}"
+            content: "{{ lookup('ansible.builtin.file', kb_dashboard_file) }}"
+            mime_type: application/octet-stream
+        body_format: form-multipart
+        headers:
+          kbn-xsrf: "true"
+        user: elastic
+        password: "{{ ELASTIC_PASSWORD }}"
+        force_basic_auth: true
+        validate_certs: false
+      vars:
+        kb_dashboard_file: "files/etc/kibana/kibana_dashboards-8.0.0.ndjson"
+
+    - name: "BeaKer Install: Check if ingest account already exists."
+      ansible.builtin.uri:
+        url: "https://localhost:9200/_security/user/sysmon-ingest"
+        user: elastic
+        password: "{{ ELASTIC_PASSWORD }}"
+        validate_certs: false
+        force_basic_auth: true
+        status_code: [200, 404]
+      register: kb_ingest_account_exists
+
+    - name: "BeaKer Install: Create and configure ingest account."
+      block:
+        - name: "BeaKer Install: Generate and write random ingest account password to environment file."
+          ansible.builtin.replace:
+            path: /opt/BeaKer/.env
+            regexp: "^INGEST_PASSWORD=$"
+            replace: "INGEST_PASSWORD={{ lookup('community.general.random_string', special=False, length=32) }}"
+
+        - name: "BeaKer Install: Read BeaKer environment file."
+          ansible.builtin.slurp:
+            src: /opt/BeaKer/.env
+          register: beaker_env
+
+        - name: "BeaKer Install: Parse ingest password from environment file contents."
+          set_fact:
+            INGEST_PASSWORD: "{{ beaker_env['content'] | b64decode | regex_search('INGEST_PASSWORD=(.+)\\n', '\\1') | first }}"
+
+        - name: "BeaKer Install: Check if ingest role already exists."
+          ansible.builtin.uri:
+            url: "https://localhost:9200/_security/role/sysmon-ingest"
+            user: elastic
+            password: "{{ ELASTIC_PASSWORD }}"
+            validate_certs: false
+            force_basic_auth: true
+            status_code: [200, 404]
+          register: kb_ingest_role_exists
+
+        - name: "BeaKer Install: Create ingest role."
+          ansible.builtin.uri:
+            url: "https://localhost:9200/_security/role/sysmon-ingest"
+            method: POST
+            user: "elastic"
+            password: "{{ ELASTIC_PASSWORD }}"
+            validate_certs: false
+            force_basic_auth: true
+            body_format: json
+            body:
+              run_as:
+              cluster:
+                - "monitor"
+                - "read_ilm"
+                - "read_pipeline"
+                - "manage_index_templates"
+              indices:
+                - names:
+                    - "sysmon-*"
+                  privileges:
+                    - "create_doc"
+                    - "create_index"
+                - names:
+                    - "winlogbeat-*"
+                  privileges:
+                    - "create_doc"
+                    - "create_index"
+                    - "auto_configure"
+                    - "view_index_metadata"
+          when: kb_ingest_role_exists.status == 404
+
+        - name: "BeaKer Install: Create ingest account."
+          ansible.builtin.uri:
+            url: "https://localhost:9200/_security/user/sysmon-ingest"
+            method: POST
+            user: "elastic"
+            password: "{{ ELASTIC_PASSWORD }}"
+            validate_certs: false
+            force_basic_auth: true
+            body_format: json
+            body:
+              password: "{{ INGEST_PASSWORD }}"
+              roles:
+                - "sysmon-ingest"
+      when: kb_ingest_account_exists.status == 404
