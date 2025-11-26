@@ -1,122 +1,95 @@
 #!/usr/bin/env bash
-
 set -e
 
-# Store the absolute path of the script's dir and switch to the top dir
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-pushd "$SCRIPT_DIR/../" > /dev/null
+# Generates the BeaKer installer by creating a temporary folder in the current directory
+# and copies files that must be in the installer into the temporary folder.
+# Once all directories are placed in stage, it is compressed and the temporary folder is deleted
 
-# Read in the versions that will be distributed with this release
-readarray elk_versions < ./ELK_VERSIONS
-# These images are exported in the deployment after running pulls/builds
-DOCKER_EXPORT_IMAGES="taskrabbit/elasticsearch-dump:v6.28.0\n"
-DOCKER_EXPORT_IMAGES="${DOCKER_EXPORT_IMAGES}activecm-beaker/check_kibana:latest\n"
+# ELK version
+ELK_VERSION="8.17.10"
 
-# Create elasticsearch & kibana images for each version defined in ELK_VERSIONS
-for version in "${elk_versions[@]}"; do
-  DOCKER_EXPORT_IMAGES="${DOCKER_EXPORT_IMAGES}activecm-beaker/elasticsearch:$version"
-  DOCKER_EXPORT_IMAGES="${DOCKER_EXPORT_IMAGES}activecm-beaker/kibana:$version"
-done 
-DOCKER_EXPORT_IMAGES=$(echo -e "$DOCKER_EXPORT_IMAGES")
-echo "###### EXPORTING THE FOLLOWING IMAGES: ######"
-echo "$DOCKER_EXPORT_IMAGES"
+# get BeaKer version from git
+VERSION=$(git describe --always --abbrev=0 --tags)
+echo "Generating installer for BeaKer $VERSION..."
 
-# These services are always built unless --no-build is passed in
-DOCKER_BUILD_SERVICES="elasticsearch kibana check_kibana"
-# These services are always pulled unless --no-pull is passsed in
-DOCKER_PULL_SERVICES="es-dump"
+# change working directory to directory of this script
+pushd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" > /dev/null
 
-__help() {
-  cat <<HEREDOC
-This script generates an installer for BeaKer.
-The resulting file is not intended to be installed directly by customers.
-Usage:
-  ${_NAME} [<arguments>]
-Options:
-  -h|--help     Show this help message.
-  --use-cache   Builds Docker images using the local cache.
-  --no-pull     Do not pull the latest base images from the container
-                repository during the build process.
-  --no-build    Do not build Docker images from scratch. This requires
-                you to have the images already built on your system. (Implies --no-pull)
-HEREDOC
-}
+BASE_DIR="./beaker-$VERSION-installer"
 
-NO_CACHE="--no-cache"
+# remove old staging folder if it exists
+rm -rf "$BASE_DIR"
 
-# Parse through command args
-while [[ $# -gt 0 ]]; do
-  case $1 in
-    -h|--help)
-      # Display help and exit
-      __help
-      exit 0
-      ;;
-    --use-cache)
-      NO_CACHE=""
-      ;;
-    --no-build)
-      NO_BUILD="--no-build"
-      ;;
-    --no-pull)
-      NO_PULL="--no-pull"
-      ;;
-    *)
-    ;;
-  esac
-  shift
-done
+# create ansible subfolders
+ANSIBLE_FILES="$BASE_DIR/files"
 
-# File/ Directory Names
-DOCKER_IMAGE_OUT=images-latest
-BEAKER_ARCHIVE=BeaKer
+mkdir "$BASE_DIR"
+mkdir -p "$ANSIBLE_FILES"
 
-STAGE_DIR="$SCRIPT_DIR/stage/$BEAKER_ARCHIVE"
+# create subfolders (for files that installed BeaKer will contain)
+INSTALL_OPT="$ANSIBLE_FILES"/opt
+INSTALL_ETC="$ANSIBLE_FILES"/etc
+INSTALL_VAR="$ANSIBLE_FILES"/var
 
-# Make sure we can use docker-compose
-shell-lib/docker/check_docker.sh || {
-  echo -e "\e[93mWARNING\e[0m: The generator did not detect a supported version of Docker."
-  echo "         A supported version of Docker can be installed by running"
-  echo "         the install_docker.sh script in the scripts directory."
-}
-shell-lib/docker/check_docker-compose.sh || {
-  echo -e "\e[93mWARNING\e[0m: The generator did not detect a supported version of Docker-Compose."
-  echo "         A supported version of Docker-Compose can be installed by running"
-  echo "         the install_docker.sh script in the scripts directory."
-}
+mkdir "$INSTALL_OPT"
+mkdir "$INSTALL_ETC"
+mkdir "$INSTALL_VAR"
 
-export COMPOSE_FILE="docker-compose.yml"
+# copy files in base dir
+cp ./install_beaker.yml "$BASE_DIR"
+cp ./install_pre.yml "$BASE_DIR"
+cp ./install_post.yml "$BASE_DIR"
+cp ./install_beaker.sh "$BASE_DIR" # entrypoint
 
-# If the current user doesn't have docker permissions run with sudo
-SUDO=
-SUDO_E=
-if [ ! -w "/var/run/docker.sock" ]; then
-  SUDO="sudo"
-  SUDO_E='sudo -E'
+# copy/download files to helper script folder
+# TODO: use main branch ansible-installer.sh when changes from RITA PR#84 are merged into main branch
+# curl --fail --silent --show-error -o "$BASE_DIR"/ansible-installer.sh https://raw.githubusercontent.com/activecm/rita/refs/heads/main/installer/install_scripts/ansible-installer.sh
+curl --fail --silent --show-error -o "$BASE_DIR"/ansible-installer.sh https://raw.githubusercontent.com/activecm/rita/refs/heads/develop/installer/install_scripts/ansible-installer.sh
+cp ./helper.sh "$BASE_DIR"
+
+# copy over configuration files to /files/etc
+mkdir "$INSTALL_ETC"/elasticsearch
+mkdir "$INSTALL_ETC"/kibana
+cp -R ../elasticsearch/templates "$INSTALL_ETC"/elasticsearch
+cp -R ../elasticsearch/elasticsearch.yml "$INSTALL_ETC"/elasticsearch
+cp ../kibana/kibana_dashboards-*.ndjson "$INSTALL_ETC"/kibana
+cp ../kibana/kibana.yml "$INSTALL_ETC"/kibana
+
+# copy over install files to /opt
+mkdir "$INSTALL_OPT"/elasticsearch
+mkdir "$INSTALL_OPT"/kibana
+cp ../beaker.sh "$INSTALL_OPT"
+cp ../docker-compose.yml "$INSTALL_OPT"
+cp ../LICENSE "$INSTALL_OPT"
+cp ../elasticsearch/*.sh "$INSTALL_OPT"/elasticsearch
+cp ../kibana/*.sh "$INSTALL_OPT"/kibana
+cp ../.env.production "$INSTALL_OPT"/.env
+
+# update version variables for files that need them
+if [ "$(uname)" == "Darwin" ]; then
+    sed -i'.bak' "s/BEAKER_VERSION_REPLACE_ME/${VERSION}/g" "$BASE_DIR/install_beaker.yml"
+    sed -i'.bak' "s/ELK_VERSION_REPLACE_ME/${ELK_VERSION}/g" "$BASE_DIR/install_beaker.yml"
+    sed -i'.bak' "s/BEAKER_VERSION_REPLACE_ME/${VERSION}/g" "$BASE_DIR/install_beaker.sh"
+    
+    rm "$BASE_DIR/install_beaker.yml.bak"
+    rm "$BASE_DIR/install_beaker.sh.bak"
+else 
+    sed -i "s/BEAKER_VERSION_REPLACE_ME/${VERSION}/g" "$BASE_DIR/install_beaker.yml"
+    sed -i "s/ELK_VERSION_REPLACE_ME/${ELK_VERSION}/g" "$BASE_DIR/install_beaker.yml"
+    sed -i "s/BEAKER_VERSION_REPLACE_ME/${VERSION}/g" "$BASE_DIR/install_beaker.sh"
 fi
 
-if [ ! "$NO_BUILD" ]; then
-  if [ "$NO_PULL" ]; then
-    echo "The latest images will *not* be pulled from DockerHub for this build."
-    $SUDO docker-compose build $NO_CACHE $DOCKER_BUILD_SERVICES
-  else
-    # Ensure we have the latest images
-    echo "The latest images will be pulled from DockerHub for this build."
-    $SUDO docker-compose pull $DOCKER_PULL_SERVICES
-    for version in "${elk_versions[@]}"; do
-      v=$(echo $version|tr -d '\n')
-      export ELK_STACK_VERSION="$v"
-      $SUDO_E docker-compose build --build-arg ELK_STACK_VERSION="$v" --pull $NO_CACHE $DOCKER_BUILD_SERVICES
-    done
-  fi
+# create installer archive
+if [ "$(uname)" == "Darwin" ]; then
+    tar --no-xattrs --disable-copyfile -czf "beaker-$VERSION.tar.gz" "$BASE_DIR"
+else
+    tar -czf "beaker-$VERSION.tar.gz" "$BASE_DIR"
 fi
 
-echo "Exporting docker images... This may take a few minutes."
-$SUDO docker save $DOCKER_EXPORT_IMAGES | gzip -c - > "$STAGE_DIR/${DOCKER_IMAGE_OUT}.tar.gz"
+# delete staging folder
+rm -rf "$BASE_DIR"
 
-echo "Creating BeaKer installer archive..."
-# This has the result of only including the files we want
-# but putting them in a single directory so they extract nicely
-tar -C "$STAGE_DIR/.."  --exclude '.*' -chf "$SCRIPT_DIR/${BEAKER_ARCHIVE}.tar" $BEAKER_ARCHIVE
-
+# switch back to original working directory
 popd > /dev/null
+
+echo "Finished generating installer."

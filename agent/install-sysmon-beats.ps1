@@ -256,7 +256,7 @@ Write-Output "######## Installing winlogbeat version $BeatsVersion ########"
 
 
 # Begin winlogbeat configuration
-Set-Location "$Env:programfiles\Winlogbeat-BeaKer\"
+Push-Location "$Env:programfiles\Winlogbeat-BeaKer\"
 
 # Backup winlogbeat config if it exists
 if (Test-Path -PathType Leaf .\winlogbeat.yml) {
@@ -271,26 +271,7 @@ if (Test-Path -PathType Leaf .\winlogbeat.yml) {
     }
 }
 
-.\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore create
-if ($ESUsername) {
-    Write-Output "$ESUsername" | .\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore add ES_USERNAME --stdin
-}
-else {
-    .\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore add ES_USERNAME
-}
-if ($ESPassword) {
-    Write-Output "$ESPassword" | .\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore add ES_PASSWORD --stdin
-}
-else {
-    .\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore add ES_PASSWORD
-}
-
-# Set ACL's of the $Env:ProgramData\winlogbeat folder to be the same as $Env:ProgramFiles\winlogbeat* (the main install path)
-# This helps ensure that "normal" users aren't able to access the $Env:ProgramData\winlogbeat folder
-Get-ACL -Path "$Env:ProgramFiles\\Winlogbeat-BeaKer*" | Set-ACL -Path "$Env:ProgramData\\winlogbeat"
-
-rm .\winlogbeat.yml
-
+# Create config file
 if ([System.Version]$BeatsVersion -lt [System.Version]"8.0.0") {
     Write-Output @"
 winlogbeat.event_logs:
@@ -337,6 +318,26 @@ output.elasticsearch:
 "@ > winlogbeat.yml
 }
 
+.\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore create
+if ($ESUsername) {
+    Write-Output "$ESUsername" | .\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore add ES_USERNAME --stdin
+}
+else {
+    .\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore add ES_USERNAME
+}
+if ($ESPassword) {
+    Write-Output "$ESPassword" | .\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore add ES_PASSWORD --stdin
+}
+else {
+    .\winlogbeat.exe --path.data "C:\ProgramData\winlogbeat" keystore add ES_PASSWORD
+}
+
+# Set ACL's of the $Env:ProgramData\winlogbeat folder to be the same as $Env:ProgramFiles\winlogbeat* (the main install path)
+# This helps ensure that "normal" users aren't able to access the $Env:ProgramData\winlogbeat folder
+Get-ACL -Path "$Env:ProgramFiles\\Winlogbeat-BeaKer*" | Set-ACL -Path "$Env:ProgramData\\winlogbeat"
+
 PowerShell.exe -ExecutionPolicy UnRestricted -File .\install-service-winlogbeat.ps1
 
 Start-Service winlogbeat
+
+Pop-Location

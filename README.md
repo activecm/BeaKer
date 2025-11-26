@@ -1,124 +1,163 @@
-# BeaKer - Beaconing Kibana Executable Report
+# BeaKer (Beaconing Kibana Executable Report)
 
-Brought to you by [Active Countermeasures](https://www.activecountermeasures.com/).
+[![BeaKer Logo](images/beaker-text.png)](https://www.activecountermeasures.com/free-tools/beaker/)
+
+If you get value out of BeaKer and would like to go a step further with integrating it into your network threat hunting workflow, then take a look at [AC-Hunter](https://www.activecountermeasures.com/).
+
+Sponsored by [Active Countermeasures](https://www.activecountermeasures.com/).
 
 ---
 
-BeaKer visualizes Microsoft Sysmon network data to help threat hunters track down the source of suspicious network connections. The custom dashboard presents which users and executables created connections between two given IPs, how many times they've connected, the protocols and ports used, and much more.
+BeaKer is a threat hunting tool designed to provide insight into the Windows hosts, users, and executables responsible for generating network traffic.
 
-## Getting Started
+BeaKer visualizes Microsoft Sysmon network using custom Kibana dashboards that show which users and executables created connections between two given IPs, how many times they've connected, the protocols and ports used, and much more.
 
-![BeaKer_demo](./images/BeaKer_demo.gif)
+Windows agents use [Sysmon](https://learn.microsoft.com/en-us/sysinternals/downloads/sysmon) to log events to the Windows Event Log. Agents then send logs to the BeaKer server using [Winlogbeat](https://www.elastic.co/docs/reference/beats/winlogbeat/). Logs are imported into [Elasticsearch](https://www.elastic.co/docs/reference/elasticsearch/) and can then be viewed through custom dashboards in [Kibana](https://www.elastic.co/docs/reference/kibana).
 
-After Sysmon starts sending data to ElasticSearch, Kibana will be ready to go. Filter by a source and destination IP and a time range to view what connections have been made between the two. The Program List will display which executables on the source machine made the connections to the destination. The actual Sysmon logs are displayed lower on the screen where you can investigate the events in greater detail.
+Sysmon collects the following information from Windows systems:
 
-## How it works
-
-- Microsoft Sysmon: Logs network connections to the Windows Event Log
-- WinLogBeats: Sends the network connection logs to Elasticsearch
-- Elasticsearch: Stores, indexes, and aggregates the network connection logs
-- Kibana: Displays logs stored in Elasticsearch and provides a user interface for Elasticsearch administration
-- Beacon Dashboard: Aggregates the network connections between two hosts
+| Category    | Information                                            |
+| ----------- | ------------------------------------------------------ |
+| Source      | IP address, Hostname, Port                             |
+| Destination | IP address, Hostname, Port                             |
+| Network     | Transport protocol, Application protocol, Community ID |
+| Process     | PID, Executable, Entity ID                             |
+| User        | Domain, Name                                           |
+| Timestamp   |                                                        |
 
 ## Installation
 
-### BeaKer Server System Requirements
-* Operating System: The preferred platform is x86 64-bit Ubuntu 20.04 LTS. The system should be patched and up to date using apt-get.
-  * The automated installer will also support CentOS 7.
-* Processor: Two or more cores. Elasticsearch uses parallel processing and benefits from more CPU cores.
-* Memory: 8-64GB. Monitoring more hosts requires more RAM.
-* Storage: Ensure `/var/lib/docker/volumes` has free space for the incoming network logs.
+BeaKer is provided as two separate components, specifically a Linux server and a Windows agent. The following section describes system requirements and installation procedures for both.
 
-### BeaKer Agent System Requirements
-* Operating System: Windows x86-64 bit OS
-* Powershell Version: 3+
-* Installed WinLogBeats version must be <= the Elasticsearch version installed on the BeaKer server, but at least the minimum supported wire version for the Elasticsearch version
-  * Elasticsearch v8.6.2 supports WinLogBeats 7.17.0 through 8.6.2 
-  * Elasticsearch v7.17.9 supports WinLogBeats 6.8.0 through 7.17.9
+### Server
 
-### Automated Install: BeaKer Server
+#### System Requirements
 
-Download the [latest release](https://github.com/activecm/BeaKer/releases/latest) tar file, extract it, and inside the `BeaKer` directory,
-run `./install_beaker.sh` on the Linux machine that will aggregate your Sysmon data and host Kibana.
+The BeaKer server is supported on the following platforms:
 
-** Note that existing BeaKer installations must be upgraded to v7.17 before they can be upgraded to v8.x.
-The automated installer will:
-  - Install Docker and Docker-Compose
-  - Create a configuration directory in `/etc/BeaKer`
-  - Install Elasticsearch, Kibana, and load the dashboards
-  - Set the Elasticsearch superuser password for the `elastic` account
-  - Set the `sysmon-ingest` user password for connecting WinLogBeats
-  - Set up index templates, ILM policy, data streams and ingest pipelines 
+| OS     | Versions         | Platform |
+| :----- | :--------------- | :------- |
+| CentOS | `9 Stream`       | `amd64`  |
+| Rocky  | `9`              | `amd64`  |
+| RHEL   | `9`              | `amd64`  |
+| Ubuntu | `22.04`, `24.04` | `amd64`  |
 
-The `beaker` script installed to `/usr/local/bin/beaker` is a wrapper around `docker-compose` and can be used to manage BeaKer.
- - To stop BeaKer, run `beaker down`
- - To start Beaker, run `beaker up`
- - To view the logs of the Elasticsearch container, run `beaker logs -f elasticsearch`
- - To view the logs of the Kibana container, run `beaker logs -f kibana`
+Hardware requirements and recommendations are listed below:
 
-After running `./install_beaker.sh` you should be able to access Kibana at `localhost:5601`. Note that Kibana is exposed on every network interface available on the Docker host.
+|         | Minimum | Recommended |
+| ------- | ------- | ----------- |
+| CPU     | 2 cores | 4 cores     |
+| Memory  | 8 GB    | 16 GB       |
+| Storage | 128 GB  | 256 GB      |
 
-Use the `elastic` account to perform your initial login to Kibana. Additional user accounts can be created using the Kibana interface. The `sysmon-ingest` user account is not allowed to access Kibana.
+Note that recommended hardware specifications are listed as a lower bound. More resources will be beneficial when deploying BeaKer in larger environments.
 
-The Elasticsearch server will begin listening for connections on port 9200 using HTTPS. It expects Sysmon ID 3 Network Events to be published to:
-- WinLogBeats less than v7.17.9: ES index `sysmon-%{+YYYY.MM.dd}`
-- WinLogBeats v7.17.9: ES index `winlogbeat-%{[agent.version]}` via data stream
-- WinLogBeats v8.6.2: Ingest Pipeline `winlogbeat-%{[agent.version]}-routing`
-See the embedded `winlogbeat.yml` file in `./agent/install-sysmon-beats.ps1` for more info.
+#### Installation Procedure
 
-The easiest way to begin sending data to the server is to use the automated BeaKer agent installer.
+> [!Important] BeaKer Upgrade Notice
+> The latest BeaKer installer can be used to upgrade BeaKer installations using ELK stack versions as old as 7.17.
+> Upgrading BeaKer installations should not result in data loss, however this is not guaranteed. To ensure that no data is lost, it is recommended that you first perform a [Snapshot](https://www.elastic.co/docs/deploy-manage/tools/snapshot-and-restore).
+> The BeaKer environment file will be preserved through server upgrades. However, web certificates will be re-generated when upgrading from BeaKer v0.0.14 to v1.0.0.
+> Upgrading BeaKer using the latest installer is only possible on Linux distributions as old as Ubuntu 20.04, CentOS 8, and Rocky Linux 8.
 
-### Automated Install: BeaKer Agent
-The PowerShell script `./agent/install-sysmon-beats.ps1` will install Sysmon and WinLogBeats, and configure WinLogBeats to begin sending data to the BeaKer server.
+Download the [latest BeaKer release](https://github.com/activecm/BeaKer/releases/latest) tarball and upload it to an appropriate Linux system.
 
-To install the agent, run the script as `.\install-sysmon-beats.ps1 ip.or.hostname.of.beaker.server 9200`.
+Connect to the system, decompress the release archive, and run the installer from the decompressed directory. The installer can be used to install BeaKer to a single local or remote system. If installing to a remote system, first ensure that the current user can connect to the target system via SSH.
 
-The script will then:
-- Ask for the credentials of the Elasticsearch user to connect with
-  - These may be supplied using the parameters `ESUsername` and `ESPassword`
-  - If using the automated BeaKer Server installer, use `sysmon-ingest`
-- Download Sysmon and install it with the default configuration in `%PROGRAMFILES%` if it doesn't exist
-- Ensures Sysmon is running as a service
-- Download WinLogBeat and install it in `%PROGRAMFILES%` and `%PROGRAMDATA%` if it doesn't exist
-- **Removes any existing winlogbeat configuration files (`winlogbeat.yml`)**
-- Installs a new `winlogbeat.yml` file to connect to the BeaKer server
-- Ensures WinLogBeat is running as a service
+```bash
+./install_beaker.sh {{ target }}
+```
 
-### BeaKer Agent uninstall
-As an administrator, run the following scripts to uninstall the beaker agent:
-- `C:\Program Files\winlogbeat-7.5.2-windows-x86_64\uninstall-service-winlogbeat.ps1
+The BeaKer installer will prompt for a `sudo` password (password for current user on machine running the installer), as well as a `BECOME` password (password for target user on the destination system). The installer will then complete all installation tasks automatically. When installing to a remote system, the target will be automatically restarted if rebooting is required to apply system updates.
+
+#### Credentials
+
+When using the BeaKer installer to upgrade an old BeaKer server installation, passwords will not be changed.
+
+During a fresh BeaKer installation, account passwords will be randomly-generated and stored in the file at `/opt/BeaKer/.env` after installation is completed.
+
+The `elastic` account password, stored in a variable named `ELASTIC_PASSWORD`, must remain stored in the environment file. The `sysmon-ingest` password, stored in a variable named `INGEST_PASSWORD`, can be removed from the environment file if you prefer to store it in a password manager.
+
+The `elastic` account should be used to authenticate to Kibana. The `sysmon-ingest` account does not have access to Kibana and should be used to authenticate agents to the BeaKer server.
+
+### Agent
+
+#### System Requirements
+
+BeaKer agents are supported on 64-bit Windows operating systems with PowerShell version 3+ available. Additionally, Winlogbeat versions are constrained by the version of Elasticsearch, specifically the minimum wire compatibility version. To view this value, browse to `https://{{ beaker_host }}:9200`, log in using credentials found in the BeaKer server environment file, and observe the value of the `minimum_wire_compatibility_version` JSON field. The following JSON response is an example taken from a BeaKer system running Elasticsearch version `8.17.10`:
+
+```json
+{
+  "name": "f60c52e796fb",
+  "cluster_name": "BeaKer-Elasticsearch",
+  "cluster_uuid": "Xuenv_Q0TdK67xdq-TLVDQ",
+  "version": {
+    "number": "8.17.10",
+    "build_flavor": "default",
+    "build_type": "docker",
+    "build_hash": "e5c4b2af120c131ea2885730f6693cb7d40a0a63",
+    "build_date": "2025-08-08T08:36:52.872377389Z",
+    "build_snapshot": false,
+    "lucene_version": "9.12.0",
+    "minimum_wire_compatibility_version": "7.17.0",
+    "minimum_index_compatibility_version": "7.0.0"
+  },
+  "tagline": "You Know, for Search"
+}
+```
+
+#### Installation Procedure
+
+Download the [latest BeaKer release](https://github.com/activecm/BeaKer/releases/latest) `install-sysmon-beats.ps1` file to an appropriate Windows system.
+
+Open an administrative PowerShell terminal. Depending on your environment, you may need to temporarily disable script execution policies using the `Set-ExecutionPolicy` cmdlet. Then, run the agent installer:
+
+```powershell
+.\install-sysmon-beats.ps1 {{ beaker_host }} 9200
+```
+
+The agent installer will then prompt for credentials. Enter `sysmon-ingest` for the username and use the password stored in the BeaKer server environment file.
+
+### Uninstallation Procedure
+
+To uninstall the BeaKer agent, run the following from an administrative Command Prompt or PowerShell terminal:
+
+- `C:\Program Files\Winlogbeat-BeaKer\uninstall-service-winlogbeat.ps1`
 - `C:\Program Files\Sysmon\Sysmon64.exe -u`
 
-### Data Collected By Sysmon Per Network Connection
-- Source
-  - IP Address
-  - Hostname
-  - Port
-- Destination
-  - IP Address
-  - Hostname
-  - Port
-- Network
-  - Transport Protocol
-  - Application Protocol
-  - Community ID
-- Process
-  - PID
-  - Executable
-  - Entity ID
-- User
-  - Domain
-  - Name
-- Timestamp
+This will stop and remove all services associated with BeaKer.
 
-## Developer Information
-When cloning the project, ensure that you have cloned the git submodules as well.
-Either pass `--recurse-submodules` to `git clone` when pulling down the project, or run the following commands afterwards:
-- `cd BeaKer`
-- `git submodule update --init --recursive`
+## Usage
 
-To generate a new release tarball, run `./installer/generate_installer.sh`.
+### Server
 
-## License
+On the BeaKer server, the `beaker` script can be used to manage BeaKer's Docker containers. The table below contains a list of operations and their associated commands.
 
-GNU GPL V3 © Active Countermeasures ™
+| Operation                          | Command                         |
+| :--------------------------------- | :------------------------------ |
+| Start BeaKer (foreground)          | `beaker up`                     |
+| Start BeaKer (background)          | `beaker up -d`                  |
+| Start BeaKer (recreate containers) | `beaker up -d --force-recreate` |
+|                                    |                                 |
+| Stop BeaKer                        | `beaker down`                   |
+|                                    |                                 |
+| View logs (dump)                   | `beaker logs`                   |
+| View logs (follow)                 | `beaker logs -f`                |
+| View logs (just Elasticsearch)     | `beaker logs -f elasticsearch`  |
+| View logs (just Kibana)            | `beaker logs -f kibana`         |
+
+### Kibana
+
+Once BeaKer is running, browse to `https://{{ beaker_host }}:5601` and log in using the `elastic` account and the password found in the BeaKer environment file. Upon first logging in, your browser will be redirected to the Kibana landing page. From here, click on the `Dashboards` button within the `Analytics` section of the sidebar.
+
+![BeaKer Dashboards Navigation](./images/BeaKer_dashboards_navigation.png)
+
+BeaKer provides two dashboards, named `Sysmon` and `Beacon Viewer`. When first using Kibana, the dashboard list shown below will be displayed when navigating the the Dashboards page. When browsing to Kibana later, the previously opened dashboard will be automatically opened.
+
+![BeaKer Dashboards List](./images/BeaKer_dashboards_list.png)
+
+The `Sysmon` dashboard displays raw Sysmon data as sent from BeaKer agents. The `Beacon Viewer` shows a view tailored to the discovery of anomalous or malicious activity within your environment. The graphic below shows an example of searching for and viewing information within the `Beacon Viewer` dashboard.
+
+![BeaKer_demo](./images/BeaKer_demo.gif)
+
+Searches can be performed using Kibana Query Language (KQL). For more information regarding KQL syntax, refer to Elasticsearch's [KQL documentation](https://www.elastic.co/docs/reference/query-languages/kql)
