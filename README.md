@@ -1,3 +1,6 @@
+> :exclamation: **Important Notice** :exclamation:
+> This branch contains the legacy (< v1.0.0) version of BeaKer and is only maintained for internal ACM use. For fresh installations of BeaKer, please go [here](https://github.com/activecm/BeaKer).
+
 # BeaKer - Beaconing Kibana Executable Report
 
 Brought to you by [Active Countermeasures](https://www.activecountermeasures.com/).
@@ -23,57 +26,64 @@ After Sysmon starts sending data to ElasticSearch, Kibana will be ready to go. F
 ## Installation
 
 ### BeaKer Server System Requirements
-* Operating System: The preferred platform is x86 64-bit Ubuntu 20.04 LTS. The system should be patched and up to date using apt-get.
-  * The automated installer will also support CentOS 7.
-* Processor: Two or more cores. Elasticsearch uses parallel processing and benefits from more CPU cores.
-* Memory: 8-64GB. Monitoring more hosts requires more RAM.
-* Storage: Ensure `/var/lib/docker/volumes` has free space for the incoming network logs.
+
+- Operating System: The preferred platform is x86 64-bit Ubuntu 20.04 LTS. The system should be patched and up to date using apt-get.
+  - The automated installer will also support CentOS 7.
+- Processor: Two or more cores. Elasticsearch uses parallel processing and benefits from more CPU cores.
+- Memory: 8-64GB. Monitoring more hosts requires more RAM.
+- Storage: Ensure `/var/lib/docker/volumes` has free space for the incoming network logs.
 
 ### BeaKer Agent System Requirements
-* Operating System: Windows x86-64 bit OS
-* Powershell Version: 3+
-* Installed WinLogBeats version must be <= the Elasticsearch version installed on the BeaKer server, but at least the minimum supported wire version for the Elasticsearch version
-  * Elasticsearch v8.6.2 supports WinLogBeats 7.17.0 through 8.6.2 
-  * Elasticsearch v7.17.9 supports WinLogBeats 6.8.0 through 7.17.9
+
+- Operating System: Windows x86-64 bit OS
+- Powershell Version: 3+
+- Installed WinLogBeats version must be <= the Elasticsearch version installed on the BeaKer server, but at least the minimum supported wire version for the Elasticsearch version
+  - Elasticsearch v8.6.2 supports WinLogBeats 7.17.0 through 8.6.2
+  - Elasticsearch v7.17.9 supports WinLogBeats 6.8.0 through 7.17.9
 
 ### Automated Install: BeaKer Server
 
 Download the [latest release](https://github.com/activecm/BeaKer/releases/latest) tar file, extract it, and inside the `BeaKer` directory,
 run `./install_beaker.sh` on the Linux machine that will aggregate your Sysmon data and host Kibana.
 
-** Note that existing BeaKer installations must be upgraded to v7.17 before they can be upgraded to v8.x.
+\*\* Note that existing BeaKer installations must be upgraded to v7.17 before they can be upgraded to v8.x.
 The automated installer will:
-  - Install Docker and Docker-Compose
-  - Create a configuration directory in `/etc/BeaKer`
-  - Install Elasticsearch, Kibana, and load the dashboards
-  - Set the Elasticsearch superuser password for the `elastic` account
-  - Set the `sysmon-ingest` user password for connecting WinLogBeats
-  - Set up index templates, ILM policy, data streams and ingest pipelines 
+
+- Install Docker and Docker-Compose
+- Create a configuration directory in `/etc/BeaKer`
+- Install Elasticsearch, Kibana, and load the dashboards
+- Set the Elasticsearch superuser password for the `elastic` account
+- Set the `sysmon-ingest` user password for connecting WinLogBeats
+- Set up index templates, ILM policy, data streams and ingest pipelines
 
 The `beaker` script installed to `/usr/local/bin/beaker` is a wrapper around `docker-compose` and can be used to manage BeaKer.
- - To stop BeaKer, run `beaker down`
- - To start Beaker, run `beaker up`
- - To view the logs of the Elasticsearch container, run `beaker logs -f elasticsearch`
- - To view the logs of the Kibana container, run `beaker logs -f kibana`
+
+- To stop BeaKer, run `beaker down`
+- To start Beaker, run `beaker up`
+- To view the logs of the Elasticsearch container, run `beaker logs -f elasticsearch`
+- To view the logs of the Kibana container, run `beaker logs -f kibana`
 
 After running `./install_beaker.sh` you should be able to access Kibana at `localhost:5601`. Note that Kibana is exposed on every network interface available on the Docker host.
 
 Use the `elastic` account to perform your initial login to Kibana. Additional user accounts can be created using the Kibana interface. The `sysmon-ingest` user account is not allowed to access Kibana.
 
 The Elasticsearch server will begin listening for connections on port 9200 using HTTPS. It expects Sysmon ID 3 Network Events to be published to:
+
 - WinLogBeats less than v7.17.9: ES index `sysmon-%{+YYYY.MM.dd}`
 - WinLogBeats v7.17.9: ES index `winlogbeat-%{[agent.version]}` via data stream
 - WinLogBeats v8.6.2: Ingest Pipeline `winlogbeat-%{[agent.version]}-routing`
-See the embedded `winlogbeat.yml` file in `./agent/install-sysmon-beats.ps1` for more info.
+  See the embedded `winlogbeat.yml` file in `./agent/install-sysmon-beats.ps1` for more info.
 
 The easiest way to begin sending data to the server is to use the automated BeaKer agent installer.
 
 ### Automated Install: BeaKer Agent
+
 The PowerShell script `./agent/install-sysmon-beats.ps1` will install Sysmon and WinLogBeats, and configure WinLogBeats to begin sending data to the BeaKer server.
 
 To install the agent, run the script as `.\install-sysmon-beats.ps1 ip.or.hostname.of.beaker.server 9200`.
 
 The script will then:
+
 - Ask for the credentials of the Elasticsearch user to connect with
   - These may be supplied using the parameters `ESUsername` and `ESPassword`
   - If using the automated BeaKer Server installer, use `sysmon-ingest`
@@ -85,11 +95,14 @@ The script will then:
 - Ensures WinLogBeat is running as a service
 
 ### BeaKer Agent uninstall
+
 As an administrator, run the following scripts to uninstall the beaker agent:
+
 - `C:\Program Files\winlogbeat-7.5.2-windows-x86_64\uninstall-service-winlogbeat.ps1
 - `C:\Program Files\Sysmon\Sysmon64.exe -u`
 
 ### Data Collected By Sysmon Per Network Connection
+
 - Source
   - IP Address
   - Hostname
@@ -112,8 +125,10 @@ As an administrator, run the following scripts to uninstall the beaker agent:
 - Timestamp
 
 ## Developer Information
+
 When cloning the project, ensure that you have cloned the git submodules as well.
 Either pass `--recurse-submodules` to `git clone` when pulling down the project, or run the following commands afterwards:
+
 - `cd BeaKer`
 - `git submodule update --init --recursive`
 

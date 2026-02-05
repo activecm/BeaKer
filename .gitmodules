@@ -1,3 +1,0 @@
-[submodule "shell-lib"]
-	path = shell-lib
-	url = https://github.com/activecm/shell-lib.git
