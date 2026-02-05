@@ -17,8 +17,6 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
-        with:
-          submodules: true
       - run: shell-lib/docker/install_docker.sh
       - run: installer/generate_installer.sh
       - uses: actions/upload-release-asset@v1
