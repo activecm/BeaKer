@@ -14,7 +14,7 @@ on:
 jobs:
   upload:
     name: Upload Artifacts
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
       - run: shell-lib/docker/install_docker.sh
