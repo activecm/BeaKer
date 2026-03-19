@@ -91,7 +91,10 @@ elif [ -s /etc/redhat-release ] && grep -iq 'release 7\|release 8\|release 9' /e
 
 	$SUDO yum -y -q -e 0 install yum-utils device-mapper-persistent-data lvm2 shadow-utils
 
-	$SUDO yum-config-manager -q --enable extras >/dev/null
+	# Enable "extras" repo if not RHEL or CentOS Stream
+	if ! grep -iq 'red hat enterprise linux\|centos stream' /etc/redhat-release; then
+		$SUDO yum-config-manager -q --enable extras >/dev/null
+	fi
 
 	if [ ! -f /etc/yum.repos.d/docker-ce.repo ]; then
 		$SUDO yum-config-manager -q --add-repo https://download.docker.com/linux/centos/docker-ce.repo > /dev/null

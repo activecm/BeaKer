@@ -450,9 +450,8 @@ ensure_common_tools_installed () {
             $SUDO yum -y -q -e 0 install yum-utils
         fi
 
-        #Addresses AC-Hunter issue #2185
-        if [ -x /usr/bin/subscription-manager ]; then		#Only attempt this on RHEL, not Centos or other clones
-            #Note, when extending to other RHEL releases (>7.x) we'll need to test for the release version and adjust the repository name.
+        #Enable extra repository for RHEL 7.x (addresses AC-Hunter issue #2185)
+        if [ -x /usr/bin/subscription-manager -a -s /etc/redhat-release ] && grep -iq 'release 7' /etc/redhat-release ; then
             $SUDO subscription-manager repos --enable=rhel-7-server-extras-rpms
         fi
 
