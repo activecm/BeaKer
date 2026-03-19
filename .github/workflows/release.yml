@@ -1,28 +1,23 @@
 name: Generate Installer
 
 on:
-  release:
-    types:
-      - published
-      #- unpublished
-      - created
-      - edited
-      #- deleted
-      - prereleased
-      - released
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   upload-installer:
     name: Upload Installer to Release
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: installer/generate_installer.sh
       - uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
             installer/beaker-${{ github.ref_name }}.tar.gz
             agent/install-sysmon-beats.ps1
